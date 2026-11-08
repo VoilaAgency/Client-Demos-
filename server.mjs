@@ -107,6 +107,7 @@ createServer(async(req,res)=>{
     if(req.method==='GET'&&path==='/login')return login(res,{next:nextPage(url.searchParams.get('next'))});
     if(req.method==='POST'&&['/auth/code','/auth/verify','/auth/logout'].includes(path)){
       if(req.headers.origin!==origin.origin){
+        if(path==='/auth/code')console.warn('Email code: blocked (request origin mismatch)');
         res.writeHead(403,{'Content-Type':'text/plain; charset=utf-8'});
         res.end('Open the VOILA login page on its main website and try again.');
         return;
@@ -116,9 +117,23 @@ createServer(async(req,res)=>{
       }
       const data=await form(req),email=(data.get('email')??'').trim().toLowerCase(),next=nextPage(data.get('next'));
       if(path==='/auth/code'){
-        if(guests.has(email)&&throttle('code:'+email,3,300000)){
-          const r=await upstream('otp',{body:{email,create_user:true}});
-          if(!r.ok)console.warn('Email code request failed',r.status);
+        if(!guests.has(email)){
+          console.info('Email code: skipped (address not invited)');
+        }else if(!throttle('code:'+email,3,300000)){
+          console.info('Email code: skipped (portal retry limit)');
+        }else{
+          try{
+            const r=await upstream('otp',{body:{email,create_user:true}});
+            if(r.ok){
+              console.info('Email code: accepted by Supabase',r.status);
+            }else{
+              const {error_code:code}=await r.json().catch(()=>({}));
+              const label=typeof code==='string'&&/^[a-z_]{1,64}$/.test(code)?code:'';
+              console.warn('Email code: rejected by Supabase',r.status,label);
+            }
+          }catch(error){
+            console.warn('Email code: could not reach Supabase',error.name);
+          }
         }
         return login(res,{email,next,code:true});
       }
