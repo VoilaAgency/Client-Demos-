@@ -8,7 +8,11 @@ const root=resolve(fileURLToPath(new URL('./public/',import.meta.url)));
 const origin=new URL(process.env.PUBLIC_ORIGIN);
 const auth=new URL(process.env.SUPABASE_URL);
 const apiKey=process.env.SUPABASE_PUBLISHABLE_KEY;
-const guests=new Set((process.env.INVITED_EMAILS??'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean));
+const normalizeEmail=value=>String(value??'').trim().toLowerCase();
+const guests=new Set((process.env.INVITED_EMAILS??'').split(',').map(normalizeEmail).filter(Boolean));
+const adminEmail=normalizeEmail(process.env.ADMIN_EMAIL);
+const adminKey=process.env.SUPABASE_SECRET_KEY?.trim();
+const adminEnabled=Boolean(adminEmail&&adminKey?.startsWith('sb_secret_'));
 if(!apiKey||!guests.size||auth.protocol!=='https:'&&auth.hostname!=='127.0.0.1')throw Error('Configure the authentication provider and invited emails.');
 if(origin.protocol!=='https:'&&origin.hostname!=='127.0.0.1')throw Error('PUBLIC_ORIGIN must use HTTPS.');
 const secure=origin.protocol==='https:';
@@ -21,7 +25,7 @@ const sessionCache=new Map();
 function nextPage(value){
   if(typeof value!=='string'||value.length>24000||!value.startsWith('/')||value.startsWith('//')||value.includes('\\'))return '/';
   const u=new URL(value,origin);
-  return u.origin===origin.origin&&(u.pathname==='/'||u.pathname.startsWith('/demo/edc/'))?u.pathname+u.search+u.hash:'/';
+  return u.origin===origin.origin&&(u.pathname==='/'||u.pathname==='/admin'||u.pathname.startsWith('/demo/edc/'))?u.pathname+u.search+u.hash:'/';
 }
 function headers(res){
   res.setHeader('Cache-Control','private, no-store');
@@ -48,6 +52,56 @@ async function upstream(route,{body,token}={}){
     signal:AbortSignal.timeout(8000)
   });
 }
+function validEmail(email){
+  return email.length<=254&&/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(email);
+}
+async function guestRecords(filters={},record){
+  const url=new URL('/rest/v1/voila_demo_guests',auth);
+  url.search=new URLSearchParams(filters);
+  const response=await fetch(url,{
+    method:record?'POST':'GET',
+    headers:{apikey:adminKey,...(record?{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'}:{})},
+    body:record?JSON.stringify(record):undefined,
+    signal:AbortSignal.timeout(8000)
+  });
+  if(!response.ok){
+    console.warn('Guest list request failed',response.status);
+    throw Error('Guest list unavailable');
+  }
+  return record?undefined:response.json();
+}
+async function canEnter(email){
+  if(!email)return false;
+  if(!adminEnabled)return guests.has(email);
+  if(email===adminEmail)return true;
+  if(!validEmail(email))return false;
+  const [record]=await guestRecords({select:'enabled',email:'eq.'+email,limit:'1'});
+  return record?record.enabled===true:guests.has(email);
+}
+function pageMessage(res,status,message){
+  res.writeHead(status,{'Content-Type':'text/plain; charset=utf-8'});
+  res.end(message);
+}
+async function adminPage(res,message=''){
+  const records=await guestRecords({select:'email,enabled',order:'email.asc'});
+  const roster=new Map([...guests].map(email=>[email,true]));
+  for(const row of records)roster.set(row.email,row.enabled);
+  roster.delete(adminEmail);
+  const list=[...roster].filter(([,enabled])=>enabled).sort(([a],[b])=>a.localeCompare(b));
+  const rows=list.map(([email])=>`<li><span>${escape(email)}</span><form action="/admin" method="post"><input type="hidden" name="action" value="remove"><input type="hidden" name="email" value="${escape(email)}"><button type="submit">Remove access</button></form></li>`).join('');
+  const demoUrl=escape(new URL('/demo/edc/',origin).href);
+  res.writeHead(200,{'Content-Type':media['.html']});
+  res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guest Access · VOILA</title><link rel="stylesheet" href="/portal.css"><link rel="stylesheet" href="/login.css">
+<style>.guest-admin{max-width:740px;margin:54px auto}.guest-admin h1{font-size:clamp(40px,7vw,65px)}.guest-admin section{margin:28px 0}.guest-admin ul{list-style:none;margin:0;padding:0}.guest-admin li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #ffffff26;overflow-wrap:anywhere}.guest-admin input,.guest-admin button{font:inherit;padding:8px 11px;border-radius:5px;border:1px solid #797385;background:#24202c;color:inherit}.guest-admin button{cursor:pointer}.guest-admin #demoLink{width:min(100%,440px)}.guest-admin label{display:block;margin-bottom:6px}.guest-admin .add-row{display:flex;flex-wrap:wrap;gap:8px}.guest-admin #email{flex:1;min-width:205px}</style></head>
+<body><div class="shell"><header class="mast"><a class="wordmark" href="/">VOILA</a><form method="post" action="/auth/logout"><button class="sign-out" type="submit">Sign out</button></form></header>
+<main class="guest-admin"><p class="eyebrow">Private admin</p><h1>Guest access.</h1><p class="intro">EDC Livestream Camera Study</p>
+${message?`<p role="status">${escape(message)}</p>`:''}
+<section><h2>Add a guest</h2><form method="post" action="/admin"><input type="hidden" name="action" value="add"><label for="email">Guest email</label><div class="add-row"><input type="email" id="email" name="email" maxlength="254" required><button type="submit">Add guest</button></div></form><p>Adding a guest grants access. Share the demo link so they can request a sign-in code.</p></section>
+<section><h2>Invited guests</h2>${rows?`<ul>${rows}</ul>`:'<p>No guests yet.</p>'}</section>
+<section><label for="demoLink">Demo link</label><input readonly id="demoLink" value="${demoUrl}"><button id="copy" type="button">Copy demo link</button><p id="copyStatus" role="status"></p></section>
+<a class="back" href="/">← Back to demo rooms</a></main></div>
+<script>document.getElementById('copy').onclick=async()=>{const input=document.getElementById('demoLink');const status=document.getElementById('copyStatus');try{await navigator.clipboard.writeText(input.value);status.textContent='Link copied.';}catch{input.select();status.textContent='The link is selected. Copy it to share.';}};</script></body></html>`);
+}
 function throttle(key,limit,ms){
   const now=Date.now();
   if(retry.size>=2000){
@@ -67,18 +121,18 @@ async function form(req){
 function sessionToken(req){
   return (req.headers.cookie??'').split(';').map(c=>c.trim()).find(c=>c.startsWith(cookie+'='))?.slice(cookie.length+1);
 }
-async function signedIn(req){
+async function signedInEmail(req){
   const token=sessionToken(req);
-  if(!token||!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token))return false;
+  if(!token||!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token))return null;
   const cached=sessionCache.get(token);
-  if(cached?.until>Date.now())return guests.has(cached.email);
+  if(cached?.until>Date.now())return cached.email;
   const result=await upstream('user',{token});
-  if(!result.ok)return false;
-  const email=(await result.json()).email?.toLowerCase();
-  if(!guests.has(email))return false;
+  if(!result.ok)return null;
+  const email=normalizeEmail((await result.json()).email);
+  if(!email)return null;
   if(sessionCache.size>=256)sessionCache.delete(sessionCache.keys().next().value);
   sessionCache.set(token,{email,until:Date.now()+20000});
-  return true;
+  return email;
 }
 function setSession(res,token,seconds){
   res.setHeader('Set-Cookie',`${cookie}=${token}; Max-Age=${seconds}; Path=/; HttpOnly; SameSite=Lax${secure?'; Secure':''}`);
@@ -104,6 +158,24 @@ createServer(async(req,res)=>{
   headers(res);
   try{
     const url=new URL(req.url,origin),path=url.pathname;
+    if(path==='/admin'||path==='/admin/'){
+      if(!adminEnabled)return pageMessage(res,404,'Page not found.');
+      if(!['GET','POST'].includes(req.method))return pageMessage(res,405,'Method not allowed.');
+      if(req.method==='POST'&&req.headers.origin!==origin.origin)return pageMessage(res,403,'Open the VOILA admin page and try again.');
+      const owner=await signedInEmail(req);
+      if(!owner)return redirect(res,'/login?next=%2Fadmin');
+      if(owner!==adminEmail)return pageMessage(res,403,'This page is for the VOILA portal administrator.');
+      if(req.method==='GET'){
+        const notice=url.searchParams.get('updated');
+        return await adminPage(res,notice==='add'?'Guest access added.':notice==='remove'?'Guest access removed.':'');
+      }
+      const data=await form(req),email=normalizeEmail(data.get('email')),action=data.get('action');
+      if(!validEmail(email)||email===adminEmail||!['add','remove'].includes(action)){
+        return await adminPage(res,'Enter a valid guest email. The administrator account is managed separately.');
+      }
+      await guestRecords({on_conflict:'email'},{email,enabled:action==='add'});
+      return redirect(res,'/admin?updated='+action);
+    }
     if(req.method==='GET'&&path==='/login')return login(res,{next:nextPage(url.searchParams.get('next'))});
     if(req.method==='POST'&&['/auth/code','/auth/verify','/auth/logout'].includes(path)){
       if(req.headers.origin!==origin.origin){
@@ -117,7 +189,7 @@ createServer(async(req,res)=>{
       }
       const data=await form(req),email=(data.get('email')??'').trim().toLowerCase(),next=nextPage(data.get('next'));
       if(path==='/auth/code'){
-        if(!guests.has(email)){
+        if(!(await canEnter(email))){
           console.info('Email code: skipped (address not invited)');
         }else if(!throttle('code:'+email,3,300000)){
           console.info('Email code: skipped (portal retry limit)');
@@ -138,7 +210,7 @@ createServer(async(req,res)=>{
         return login(res,{email,next,code:true});
       }
       const otp=data.get('code')??'';
-      if(guests.has(email)&&/^\d{6,10}$/.test(otp)&&throttle('verify:'+email,10,300000)){
+      if(/^\d{6,10}$/.test(otp)&&await canEnter(email)&&throttle('verify:'+email,10,300000)){
         const r=await upstream('verify',{body:{email,token:otp,type:'email'}});
         if(r.ok){
           const {access_token:token,expires_in:ttl,user}=await r.json();
@@ -152,7 +224,7 @@ createServer(async(req,res)=>{
     }
     if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}
     if(path==='/portal.css'||path==='/login.css')return staticFile(req,res,path);
-    if(!(await signedIn(req)))return redirect(res,'/login?next='+encodeURIComponent(nextPage(path+url.search)));
+    if(!(await canEnter(await signedInEmail(req))))return redirect(res,'/login?next='+encodeURIComponent(nextPage(path+url.search)));
     return staticFile(req,res,path);
   }catch(error){
     console.warn('Portal request failed',error.name);
