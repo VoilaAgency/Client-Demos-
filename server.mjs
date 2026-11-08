@@ -27,7 +27,7 @@ function headers(res){
   res.setHeader('Cache-Control','private, no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('X-Robots-Tag','noindex, nofollow');
-  res.setHeader('Referrer-Policy','no-referrer');
+  res.setHeader('Referrer-Policy','same-origin');
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
 }
 function redirect(res,to){res.writeHead(303,{Location:to});res.end();}
@@ -106,7 +106,11 @@ createServer(async(req,res)=>{
     const url=new URL(req.url,origin),path=url.pathname;
     if(req.method==='GET'&&path==='/login')return login(res,{next:nextPage(url.searchParams.get('next'))});
     if(req.method==='POST'&&['/auth/code','/auth/verify','/auth/logout'].includes(path)){
-      if(req.headers.origin!==origin.origin){res.writeHead(403);res.end();return;}
+      if(req.headers.origin!==origin.origin){
+        res.writeHead(403,{'Content-Type':'text/plain; charset=utf-8'});
+        res.end('Open the VOILA login page on its main website and try again.');
+        return;
+      }
       if(path==='/auth/logout'){
         sessionCache.delete(sessionToken(req));setSession(res,'',0);return redirect(res,'/login');
       }
