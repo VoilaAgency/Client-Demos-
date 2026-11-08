@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kinetic Field Viewfinder</title>
+<meta name="description" content="A synchronized overhead camera plot and simulated 16:9 viewfinder for Kinetic Field.">
+<link rel="stylesheet" href="show.css">
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#16232e;--line:#2c414f;--fg:#e3edf1;--muted:#a0b5c3;--cyan:#4ccdeb;--amber:#ffb85c;--lavender:#bca2ef;font:15px system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg)}button,input,select{font:inherit;color:inherit}button,select,input[type=number]{border:1px solid #435969;border-radius:5px;background:#111e28;padding:7px 9px;min-width:0}button,select{cursor:pointer}button:hover{border-color:var(--cyan)}:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}input[type=range]{width:100%;accent-color:var(--accent,var(--cyan));margin:5px 0 2px}input[type=checkbox]{accent-color:var(--accent,var(--cyan))}output{font-variant-numeric:tabular-nums}
+.shell{max-width:1560px;padding:26px clamp(12px,3vw,45px);margin:auto}.bar,.panel-title,.section-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.eyebrow,.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.eyebrow{color:var(--cyan)}h1{font-size:clamp(24px,4vw,38px);font-weight:500;letter-spacing:.015em;margin:5px 0}.sub{color:var(--muted);margin:4px 0 0}.export{background:var(--cyan);color:#0b1c24;border-color:var(--cyan);font-weight:600;padding:9px 13px}.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px;align-items:start;margin-top:22px}.canvas,.controls{border:1px solid var(--line);background:var(--panel);border-radius:8px;overflow:hidden}.panel-title{padding:12px 15px}.canvas svg{display:block;width:100%;aspect-ratio:940/620;background:#101a23;user-select:none}.canvas svg [data-handle]{cursor:grab;touch-action:none}.canvas svg [data-handle]:active{cursor:grabbing}.caption{display:flex;flex-wrap:wrap;gap:6px 15px;padding:12px 15px;color:var(--muted);font-size:12px}.caption span+span:before{content:"·";padding-right:15px}.controls section{padding:13px 15px;border-bottom:1px solid var(--line)}.controls section:last-child{border-bottom:0}.section-top h2{font-size:12px;letter-spacing:.11em;text-transform:uppercase;font-weight:500;margin:0 0 8px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fields label,.full{display:grid;gap:4px}.full{margin-bottom:8px}.fields input,.fields select,.full select{width:100%}.metric{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 0}.lens{border-left:2px solid var(--accent);padding-left:9px;margin:9px 0 13px}.lens:last-child{margin-bottom:0}.lens-row{display:flex;gap:6px;align-items:center;justify-content:space-between;color:var(--accent)}.lens-row label:first-child{flex:1;display:flex;align-items:center;gap:4px}.lens-row input[type=number]{width:66px;color:var(--accent);padding:4px 5px}.lens .metric{color:var(--accent);font-size:12px;margin:0}.hint{font-size:12px;color:var(--muted);line-height:1.45;margin:12px 1px 0}.status{min-height:1.3em;margin:7px 0 0;color:var(--cyan);font-size:12px}.plot-hint{color:var(--muted);font-size:12px}
+@media(max-width:900px){.layout{grid-template-columns:minmax(0,1fr) 300px;gap:12px}}@media(max-width:720px){.layout{display:flex;flex-direction:column}.canvas,.controls{width:100%}.caption span+span:before{content:none}.shell{padding-top:15px}.canvas svg{min-height:250px}}
+
+.view-pair{display:grid;gap:12px}.frame{position:relative;background:#101a23}.frame canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;max-height:clamp(220px,32vh,400px);object-fit:contain}
+.reticle{position:absolute;left:50%;top:50%;width:19px;height:19px;transform:translate(-50%,-50%);pointer-events:none;color:#e1edf1;opacity:.72}
+.reticle:before,.reticle:after{content:"";position:absolute;background:currentColor}.reticle:before{width:19px;height:1px;top:9px}.reticle:after{height:19px;width:1px;left:9px}
+.viewfinder-caption{min-height:41px;padding:10px 15px;font-size:12px;font-variant-numeric:tabular-nums}.viewfinder-top select{border-color:var(--accent,var(--line));color:var(--accent,var(--fg))}
+.view-pair .canvas svg{max-height:clamp(235px,33vh,380px);min-height:0}.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.actions label{display:flex;align-items:center;gap:6px}.secondary{color:var(--muted)}
+@media(max-width:720px){.view-pair .canvas svg{max-height:none}.frame canvas{max-height:none}.viewfinder-top{gap:8px}}
+.nav-link{display:inline-block;color:var(--fg);padding:7px 9px;border:1px solid #435969;border-radius:5px;text-decoration:none}.nav-link:hover{border-color:var(--cyan)}
+</style>
+<link rel="stylesheet" href="/tool-shell.css"></head>
+<body><a class="voila-return" href="../" aria-label="Back to the EDC demo room"><span aria-hidden="true">←</span> VOILA / DEMO ROOM</a>
+<main class="shell">
+  <header class="bar">
+    <div><div class="eyebrow">Live production / camera planning</div><h1>Kinetic Field Viewfinder</h1><p class="sub">Frame the shot in 16:9 while you move the camera on the overhead plot.</p></div>
+    <div class="actions">
+      <a class="nav-link" href="../overhead/">Overhead plot</a>
+      <button id="export" class="secondary" type="button">Export plot</button>
+      <button id="exportFrame" class="export" type="button">Export viewfinder</button>
+    </div>
+  </header>
+  <section id="show" class="show-panel" aria-label="Show presets"></section>
+  <div class="layout">
+    <div class="view-pair">
+      <div class="canvas">
+        <div class="panel-title viewfinder-top"><span class="label">Live viewfinder / 16:9</span><label class="label">Lens <select id="frameLens"></select></label></div>
+        <div class="frame"><canvas id="viewfinder" width="1280" height="720" role="img" aria-label="Simulated camera view of the stage and crowd"><span>Simulated camera view of the stage and crowd.</span></canvas><div class="reticle" aria-hidden="true"></div></div>
+        <div class="viewfinder-caption" id="frameReadout"></div>
+      </div>
+      <div class="canvas">
+        <div class="panel-title"><span class="label">Overhead / feet</span><span class="plot-hint">Drag CAMERA or AIM</span><label class="label">View <select id="view"><option value="fit">Fit setup</option><option value="field">Full field</option></select></label></div>
+        <svg id="plot" viewBox="0 0 940 620" role="img" aria-label="Top-down lens coverage plot. Camera and aim can also be changed with the numeric fields."></svg>
+        <div class="caption"><span>Stage R = audience left (−X)</span><span>Stage L = audience right (+X)</span><span>+Y toward audience</span></div>
+      </div>
+      <p class="hint">Planning geometry from Workbook 08. Stage, crowd and elevations are illustrative. The viewfinder uses a rectilinear lens model and a simplified 3D scene. The overhead plot reports horizontal coverage.</p>
+      <p class="status" id="status" role="status"></p>
+    </div>
+    <aside class="controls" aria-label="Camera and lens settings">
+      <section>
+        <div class="section-top"><h2>01 / Camera setup</h2><button id="reset" type="button">Reset preset</button></div>
+        <label class="full"><span class="label">Position preset</span><select id="preset"></select></label>
+        <div class="fields">
+          <label><span class="label">Camera X · ft</span><input id="cx" type="number" step="0.1" min="-500" max="500"></label>
+          <label><span class="label">Camera Y · ft</span><input id="cy" type="number" step="0.1" min="-150" max="650"></label>
+          <label><span class="label">Aim X · ft</span><input id="ax" type="number" step="0.1" min="-500" max="500"></label>
+          <label><span class="label">Aim Y · ft</span><input id="ay" type="number" step="0.1" min="-150" max="650"></label>
+          <label><span class="label">Throw · ft</span><input id="distance" type="number" step="0.1" min="0.1" max="1250"></label>
+          <label><span class="label">Stage-front Y · ft</span><input id="stageY" type="number" step="0.1" min="-150" max="650" value="10"></label>
+        </div>
+        <p class="metric">Throw moves the camera along its current aim line.</p>
+        <div class="fields" style="margin-top:8px">
+          <label><span class="label">Camera height · ft</span><input id="eye" type="number" step="0.1" min="1" max="150"></label>
+          <label><span class="label">Aim height · ft</span><input id="targetHeight" type="number" step="0.1" min="0" max="150"></label>
+        </div>
+        <label class="metric"><input id="crowdToggle" type="checkbox" checked> Show crowd in viewfinder</label>
+      </section>
+      <section><div class="section-top"><h2>02 / Lens comparison</h2></div><div id="lenses"></div><p class="metric">At aim = across the view, perpendicular to the aim line. Stage front = along the selected Y line.</p></section>
+      <section>
+        <div class="section-top"><h2>03 / Sensor and overlays</h2></div>
+        <div class="fields">
+          <label><span class="label">Sensor format</span><select id="format"><option value="36">Full frame</option><option value="24">Super 35</option><option value="custom">Custom active width</option></select></label>
+          <label><span class="label">Active width · mm</span><input id="sensor" type="number" step="0.1" min="1" max="100"></label>
+        </div>
+        <p class="metric">Use the active width of your camera’s recording mode.</p>
+        <label class="full" style="margin-top:9px"><span class="label">Overlay opacity · <output id="opacityValue">22%</output></span><input id="opacity" type="range" min="5" max="45" value="22"></label>
+        <label class="metric"><input id="showStage" type="checkbox" checked> Show stage-front coverage marks</label>
+      </section>
+
+    </aside>
+  </div>
+</main>
+<script src="viewfinder.js"></script>
+<script src="show.js"></script>
+<script>
+'use strict';
+const presets = {
+  foh: {name:'FOH / center', camera:[0,250], aim:[0,0], sensor:36, lenses:[35,100,435]},
+  sl: {name:'Stage L / wing slash', camera:[200,180], aim:[0,0], sensor:36, lenses:[35,100,435]},
+  sr: {name:'Stage R / wing slash', camera:[-200,180], aim:[0,0], sensor:36, lenses:[35,100,435]},
+  pitR: {name:'Stage R / pit', camera:[-20,35], aim:[0,0], sensor:36, lenses:[35,85,145]},
+  pitL: {name:'Stage L / pit', camera:[20,35], aim:[0,0], sensor:36, lenses:[35,85,145]},
+  pitCrowd: {name:'Pit / crowd reverse', camera:[0,12], aim:[0,32], sensor:36, lenses:[35,85,145]},
+  rail: {name:'Downstage rail / center', camera:[0,25], aim:[0,0], sensor:36, lenses:[35,85,145]},
+  railR: {name:'Stage R / downstage rail', camera:[-30,25], aim:[0,0], sensor:36, lenses:[35,85,145]},
+  deck: {name:'Deck booth / off-axis', camera:[-10,-8], aim:[0,0], sensor:24, lenses:[30,60,90]},
+  deckCenter: {name:'Deck booth / center reverse', camera:[0,-10], aim:[0,0], sensor:24, lenses:[30,60,90]},
+};
+const series = [{name:'Wide',color:'#4ccdeb'},{name:'Midrange',color:'#ffb85c'},{name:'Tight',color:'#bca2ef'}];
+const byId = id => document.getElementById(id);
+const svg = byId('plot');
+const preset = byId('preset');
+const W = 940, H = 620, stageWidth = 440, floorWidth = 800, floorEnd = 530, railY = 30;
+const bounds = {cx:[-500,500],cy:[-150,650],ax:[-500,500],ay:[-150,650]};
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi,n));
+const round = n => Math.round(n*10)/10;
+const display = n => n.toFixed(1);
+const state = {camera:[0,250],aim:[0,0],direction:[0,-1],sensor:36,stageY:10,opacity:.22,visible:[true,true,true],lenses:[35,100,435],showStage:true};
+let transform, drag = null;
+const viewfinderState={eye:9,targetHeight:11.8,lens:0,showCrowd:true};
+const frameLens=byId('frameLens');
+let pendingFrame=0;
+const heights={foh:[9,11.8],sl:[10,11.8],sr:[10,11.8],pitR:[5.5,11.8],pitL:[5.5,11.8],pitCrowd:[5.5,5.6],rail:[5,11.8],railR:[5,11.8],deck:[11.5,11.8],deckCenter:[11.5,11.8]};
+
+function frameOptions() {
+  return {camera:state.camera,aim:state.aim,stageFront:state.stageY,sensor:state.sensor,
+    focal:state.lenses[viewfinderState.lens],eye:viewfinderState.eye,
+    targetHeight:viewfinderState.targetHeight,showCrowd:viewfinderState.showCrowd};
+}
+function updateViewfinder(skip='') {
+  const {focal,sensor,eye,targetHeight}=frameOptions();
+  const horizontal=Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]);
+  const pitch=Math.atan2(targetHeight-eye,horizontal)*180/Math.PI;
+  const hfov=2*Math.atan(sensor/(2*focal))*180/Math.PI;
+  const vfov=2*Math.atan(sensor*9/(16*2*focal))*180/Math.PI;
+  for(const [id,value] of Object.entries({eye,targetHeight}))if(id!==skip)byId(id).value=round(value);
+  const options=series.map((s,i)=>s.name+' · '+state.lenses[i]+' mm');
+  options.forEach((label,i)=>frameLens.options[i].textContent=label);
+  frameLens.value=viewfinderState.lens;
+  frameLens.style.setProperty('--accent',series[viewfinderState.lens].color);
+  byId('frameReadout').textContent=horizontal<.05?'Camera and aim overlap':
+    focal+' mm · '+display(hfov)+'° H / '+display(vfov)+'° V · '+display(pitch)+'° tilt · '+display(Math.hypot(horizontal,targetHeight-eye))+' ft sightline';
+  if(!pendingFrame)pendingFrame=requestAnimationFrame(()=>{
+    pendingFrame=0;drawViewfinder(byId('viewfinder'),frameOptions());
+  });
+}
+
+frameLens.innerHTML=series.map((s,i)=>'<option value="'+i+'">'+s.name+'</option>').join('');
+frameLens.addEventListener('change',e=>{viewfinderState.lens=Number(e.target.value);updateViewfinder()});
+byId('crowdToggle').addEventListener('change',e=>{viewfinderState.showCrowd=e.target.checked;updateViewfinder()});
+
+
+function lensGeometry(camera, aim, sensor, focal, stageY) {
+  const dx=aim[0]-camera[0], dy=aim[1]-camera[1], distance=Math.hypot(dx,dy);
+  if (distance < .05) return null;
+  const ux=dx/distance, uy=dy/distance, k=sensor/(2*focal);
+  const point = (d, side) => [camera[0]+d*(ux-side*k*uy),camera[1]+d*(uy+side*k*ux)];
+  const slopes=[uy-k*ux,uy+k*ux];
+  const stageDelta = stageY-camera[1];
+  const times=slopes.map(slope=> Math.abs(slope)<1e-9 ? NaN : stageDelta/slope);
+  const stage = times.every(t=>Number.isFinite(t)&&t>0) ? [point(times[0],-1),point(times[1],1)] : null;
+  return {distance, angle:2*Math.atan(k)*180/Math.PI, width:2*k*distance,
+    atAim:[point(distance,-1),point(distance,1)], stage,
+    stageWidth:stage ? Math.abs(stage[0][0]-stage[1][0]) : null, point};
+}
+function svgLabel(x,y,value,color='#a0b5c3',anchor='start',size=13) {
+  return '<text x="'+x+'" y="'+y+'" fill="'+color+'" text-anchor="'+anchor+'" font-size="'+size+'">'+value+'</text>';
+}
+function frame() {
+  const [x,y]=state.camera, [a,b]=state.aim;
+  let left,right,top,bottom;
+  if (byId('view').value==='field') {
+    left=Math.min(-450,x-35,a-35); right=Math.max(450,x+35,a+35);
+    top=Math.min(-80,y-35,b-35,state.stageY-30); bottom=Math.max(555,y+35,b+35,state.stageY+30);
+  } else {
+    const wide = Math.hypot(x-a,y-b)>105;
+    const extents = state.lenses.flatMap((f,i)=>{
+      if (!state.visible[i]) return [];
+      return lensGeometry(state.camera,state.aim,state.sensor,f,state.stageY)?.atAim ?? [];
+    });
+    const xs=[x,a,...extents.map(p=>p[0]),...(wide?[-245,245]:[-10,10])];
+    const ys=[y,b,state.stageY,...extents.map(p=>p[1]),...(wide?[-30]:[-13,15])];
+    const pad=Math.max(7, Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))*.12);
+    left=Math.min(...xs)-pad;right=Math.max(...xs)+pad;top=Math.min(...ys)-pad;bottom=Math.max(...ys)+pad;
+  }
+  const scale=Math.min((W-46)/(right-left),(H-62)/(bottom-top));
+  return {scale, x:W/2-(left+right)/2*scale,y:H/2-(top+bottom)/2*scale};
+}
+function makePlot(t, geometries) {
+  const X=x=>t.x+x*t.scale, Y=y=>t.y+y*t.scale;
+  const p=([x,y])=>X(x)+','+Y(y);
+  const left=(20-t.x)/t.scale,right=(W-20-t.x)/t.scale,top=(24-t.y)/t.scale,bottom=(H-26-t.y)/t.scale;
+  const steps=[1,2,5,10,20,25,50,100,200,500];
+  const step=steps.find(n=>n*t.scale>=43)||500;
+  const stageY=state.stageY;
+  let grid='', axes='';
+  for (let x=Math.ceil(left/step)*step;x<right;x+=step) {
+    grid+='<path d="M'+X(x)+' 24V'+(H-26)+'"/>';
+    if(x) axes+=svgLabel(X(x),H-8,x,'#a0b5c3','middle',11);
+  }
+  for (let y=Math.ceil(top/step)*step;y<bottom;y+=step) {
+    grid+='<path d="M20 '+Y(y)+'H'+(W-20)+'"/>';
+    if(y) axes+=svgLabel(23,Y(y)-4,y,'#a0b5c3','start',11);
+  }
+  let marks='<rect x="20" y="24" width="'+(W-40)+'" height="'+(H-50)+'" fill="#121f29"/>';
+  marks+='<g clip-path="url(#plot-clip)"><rect x="'+X(-floorWidth/2)+'" y="'+Y(railY)+'" width="'+floorWidth*t.scale+'" height="'+(floorEnd-railY)*t.scale+'" fill="#192c37" stroke="#3c5563"/>';
+  marks+='<g stroke="#293f4c" stroke-width="1">'+grid+'</g>';
+  marks+='<path d="M'+X(0)+' 24V'+(H-26)+'" stroke="#4a6373" stroke-dasharray="4 6"/>';
+  if (Y(stageY)>24 && Y(stageY)<H-26) {
+    marks+='<path d="M20 '+Y(stageY)+'H'+(W-20)+'" stroke="#8398a6" stroke-dasharray="6 5"/>';
+    const sx=X(-stageWidth/2), ex=X(stageWidth/2);
+    marks+='<path d="M'+sx+' '+Y(stageY)+'H'+ex+'" stroke="#a0b5c3" stroke-width="2"/>';
+    marks+=svgLabel(W-29,Y(stageY)-7,'STAGE FRONT','#a0b5c3','end',12);
+  }
+  if(Y(railY)>24 && Y(railY)<H-26){
+    marks+='<path d="M20 '+Y(railY)+'H'+(W-20)+'" stroke="#637e8d" stroke-dasharray="2 6"/>';
+    if(Math.abs(Y(railY)-Y(stageY))>21) marks+=svgLabel(W-29,Y(railY)+15,'AUDIENCE RAIL','#a0b5c3','end',11);
+  }
+  marks+='<rect x="'+X(-9)+'" y="'+Y(-2)+'" width="'+18*t.scale+'" height="'+4*t.scale+'" fill="#34515e" stroke="#77929f"/>';
+  marks+=svgLabel(X(0),Y(-2)-7,'DJ BOOTH','#a0b5c3','middle',11);
+  const extent = Math.hypot(W,H)/t.scale+Math.max(...state.camera.map(Math.abs))+Math.max(...state.aim.map(Math.abs));
+  const active=geometries.map((g,i)=>({g,i})).filter(({g,i})=>g&&state.visible[i]).sort((a,b)=>b.g.width-a.g.width);
+  for (const {g,i} of active) {
+    const color=series[i].color;
+    marks+='<polygon points="'+p(state.camera)+' '+p(g.point(extent,-1))+' '+p(g.point(extent,1))+'" fill="'+color+'" fill-opacity="'+state.opacity+'" stroke="'+color+'" stroke-opacity=".8" stroke-width="1.2"/>';
+  }
+  marks+='<path d="M'+p(state.camera)+'L'+p(state.aim)+'" stroke="#e3edf1" stroke-dasharray="5 5" opacity=".7"/>';
+  for (const {g,i} of active) {
+    const color=series[i].color;
+    marks+='<path d="M'+p(g.atAim[0])+'L'+p(g.atAim[1])+'" stroke="'+color+'" stroke-width="2.5"/>';
+    if(state.showStage&&g.stage) for(const endpoint of g.stage) {
+      marks+='<circle cx="'+X(endpoint[0])+'" cy="'+Y(endpoint[1])+'" r="4" fill="'+color+'" stroke="#101820"/>';
+    }
+  }
+  for (const [id,point,label,color] of [['aim',state.aim,'AIM','#ffcf91'],['camera',state.camera,'CAMERA','#f4f8fa']]) {
+    const x=X(point[0]),y=Y(point[1]);
+    marks+='<g data-handle="'+id+'"><circle cx="'+x+'" cy="'+y+'" r="18" fill="transparent"/><circle cx="'+x+'" cy="'+y+'" r="'+(id==='aim'?6:8)+'" fill="#101820" stroke="'+color+'" stroke-width="2"/>';
+    marks+=svgLabel(x+13,y+5,label,color,'start',13)+'</g>';
+  }
+  marks+='</g>';
+  return '<defs><clipPath id="plot-clip"><rect x="20" y="24" width="'+(W-40)+'" height="'+(H-50)+'"/></clipPath></defs><g font-family="system-ui, sans-serif">'+marks+axes+
+    svgLabel(21,16,'STAGE R / −X','#a0b5c3')+svgLabel(W-21,16,'STAGE L / +X','#a0b5c3','end')+svgLabel(W/2,H-8,'X / FT','#a0b5c3','middle',11)+'</g>';
+}
+function geoms() {return state.lenses.map(f=>lensGeometry(state.camera,state.aim,state.sensor,f,state.stageY));}
+function render({freeze=false, skip=''}={}) {
+  const geometry = geoms();
+  if (geometry[0]) state.direction=[(state.aim[0]-state.camera[0])/geometry[0].distance,(state.aim[1]-state.camera[1])/geometry[0].distance];
+  if (!freeze || !transform) transform=frame();
+  svg.innerHTML=makePlot(transform,geometry);
+  const values={cx:state.camera[0],cy:state.camera[1],ax:state.aim[0],ay:state.aim[1],distance:Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]),sensor:state.sensor,stageY:state.stageY};
+  for (const [id,value] of Object.entries(values)) if(id!==skip) byId(id).value=round(value);
+  byId('format').value=state.sensor===36?'36':state.sensor===24?'24':'custom';
+  byId('opacityValue').textContent=Math.round(state.opacity*100)+'%';
+  geometry.forEach((g,i)=>{
+    const number=byId('f'+i),slider=byId('zoom'+i);
+    if(number.id!==skip) number.value=state.lenses[i];
+    slider.max=Math.max(600, state.lenses[i]);
+    slider.value=state.lenses[i];
+    slider.setAttribute('aria-valuetext',state.lenses[i]+' millimeters');
+    byId('read'+i).textContent=!g?'Move camera away from aim to calculate coverage.':
+      display(g.angle)+'° HFOV · '+display(g.width)+' ft at aim · '+(g.stage ? display(g.stageWidth)+' ft at stage front':'stage front: no finite cut');
+  });
+  updateViewfinder(skip);
+}
+function loadPreset() {
+  const p=presets[preset.value];
+  state.camera=[...p.camera];state.aim=[...p.aim];state.sensor=p.sensor;state.stageY=10;
+  state.lenses=[...p.lenses];state.visible=[true,true,true];
+  [viewfinderState.eye,viewfinderState.targetHeight]=heights[preset.value];
+  series.forEach((_,i)=>byId('vis'+i).checked=true);
+  render();
+}
+function bindNumber(id, apply) {
+  const field=byId(id);
+  field.addEventListener('input',()=>{
+    const v=field.valueAsNumber;
+    if(!Number.isFinite(v) || v<Number(field.min) || v>Number(field.max)) return;
+    apply(v); render({skip:id});
+  });
+  field.addEventListener('change',()=>render());
+}
+preset.innerHTML=Object.entries(presets).map(([id,p])=>'<option value="'+id+'">'+p.name+'</option>').join('');
+byId('lenses').innerHTML=series.map((s,i)=>'<div class="lens" style="--accent:'+s.color+'"><div class="lens-row">'+
+  '<label><input type="checkbox" checked id="vis'+i+'"> '+s.name+'</label><label><span class="label">mm</span> <input id="f'+i+'" type="number" min="1" max="2000" step="1" aria-label="'+s.name+' focal length in millimeters"></label></div>'+
+  '<input id="zoom'+i+'" type="range" min="1" max="2000" step="1" aria-label="'+s.name+' focal length slider">'+
+  '<p class="metric" id="read'+i+'"></p></div>').join('');
+series.forEach((_,i)=>{
+  byId('vis'+i).addEventListener('change',e=>{state.visible[i]=e.target.checked;render()});
+  bindNumber('f'+i,v=>state.lenses[i]=v);
+  byId('zoom'+i).addEventListener('input',e=>{state.lenses[i]=Number(e.target.value);render()});
+});
+for (const [key,axis] of [['cx',0],['cy',1],['ax',0],['ay',1]]) bindNumber(key,v=>state[key[0]==='c'?'camera':'aim'][axis]=v);
+bindNumber('distance',v=>{
+  const [ux,uy]=state.direction;
+  const limits=[bounds.cx,bounds.cy];
+  const max=Math.min(...[ux,uy].map((direction,i)=>{
+    if(Math.abs(direction)<1e-9) return Infinity;
+    const endpoint=direction>0?limits[i][0]:limits[i][1];
+    return (state.aim[i]-endpoint)/direction;
+  }));
+  const d=Math.min(v,max);
+  state.camera=[state.aim[0]-ux*d,state.aim[1]-uy*d];
+});
+bindNumber('sensor',v=>state.sensor=v);
+bindNumber('stageY',v=>state.stageY=v);
+bindNumber('eye',v=>viewfinderState.eye=v);
+bindNumber('targetHeight',v=>viewfinderState.targetHeight=v);
+preset.addEventListener('change',loadPreset);
+byId('reset').addEventListener('click',loadPreset);
+byId('view').addEventListener('change',()=>render());
+byId('format').addEventListener('change',e=>{
+  if(e.target.value==='custom'){byId('sensor').focus();byId('sensor').select();return}
+  state.sensor=Number(e.target.value);render();
+});
+byId('opacity').addEventListener('input',e=>{state.opacity=Number(e.target.value)/100;render()});
+byId('showStage').addEventListener('change',e=>{state.showStage=e.target.checked;render()});
+svg.addEventListener('pointerdown',e=>{
+  const handle=e.target.closest('[data-handle]');
+  if(!handle || drag) return;
+  const matrix=svg.getScreenCTM();
+  if(!matrix) return;
+  const point=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());
+  const id=handle.dataset.handle;
+  drag={id,pointer:e.pointerId,start:[point.x,point.y],origin:[...state[id]],scale:transform.scale,moved:false};
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove',e=>{
+  if(!drag||drag.pointer!==e.pointerId) return;
+  const matrix=svg.getScreenCTM();
+  if(!matrix) return;
+  const pt=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());
+  const offset=[(pt.x-drag.start[0])/drag.scale,(pt.y-drag.start[1])/drag.scale];
+  const keys=drag.id==='camera'?['cx','cy']:['ax','ay'];
+  state[drag.id]=offset.map((value,i)=>round(clamp(drag.origin[i]+value,...bounds[keys[i]])));
+  drag.moved=true;
+  render({freeze:true});
+});
+function stopDrag(e){if(drag?.pointer!==e.pointerId)return;const moved=drag.moved;drag=null;if(moved)render();}
+for (const event of ['pointerup','pointercancel','lostpointercapture']) svg.addEventListener(event,stopDrag);
+
+function exportSVG() {
+  const geometry=geoms();
+  const title=presets[preset.value].name.toUpperCase();
+  const c=state.camera.map(display).join(', '), a=state.aim.map(display).join(', ');
+  const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const lines=geometry.map((g,i)=>{
+    if(!state.visible[i])return '';
+    const y=353+i*120, color=series[i].color;
+    return svgLabel(1400,y,series[i].name.toUpperCase()+' / '+state.lenses[i]+' MM',color,'start',25)+
+      svgLabel(1400,y+33,g ? display(g.angle)+'° HFOV · '+display(g.width)+' ft at aim':'Coincident camera and aim',color,'start',21)+
+      (g?svgLabel(1400,y+63,g.stage?display(g.stageWidth)+' ft along stage front':'Stage front: no finite cut',color,'start',21):'');
+  }).join('');
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="#101820"/><g font-family="system-ui, sans-serif">'+
+    svgLabel(80,75,'KINETIC FIELD / LIVESTREAM CAMERA PLANNING','#4ccdeb','start',21)+svgLabel(80,139,esc(title),'#e3edf1','start',44)+
+    '<svg x="65" y="170" width="1270" height="838" viewBox="0 0 940 620">'+makePlot(transform,geometry)+'</svg>'+
+    svgLabel(1400,210,'CAMERA GEOMETRY','#e3edf1','start',24)+svgLabel(1400,246,'Camera '+c+' ft / aim '+a+' ft','#a0b5c3','start',18)+
+    svgLabel(1400,277,display(state.sensor)+' mm active sensor width','#a0b5c3','start',20)+
+    svgLabel(1400,307,display(Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]))+' ft throw / stage front Y '+display(state.stageY)+' ft','#a0b5c3','start',18)+
+    lines+svgLabel(80,1043,'WORKBOOK 08 / 2D PLANNING GEOMETRY · DIMENSIONS ILLUSTRATIVE · +Y TOWARD AUDIENCE','#a0b5c3','start',18)+'</g></svg>';
+}
+byId('export').addEventListener('click',async()=>{
+  const button=byId('export'),status=byId('status');
+  button.disabled=true;status.textContent='Preparing 1920 × 1080 PNG…';
+  const url=URL.createObjectURL(new Blob([exportSVG()],{type:'image/svg+xml;charset=utf-8'}));
+  try {
+    const image=new Image();image.src=url;await image.decode();
+    const canvas=document.createElement('canvas');canvas.width=1920;canvas.height=1080;
+    canvas.getContext('2d').drawImage(image,0,0);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(!blob)throw Error('PNG encoder returned no image');
+    const png=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=png;a.download='Kinetic_Field_'+preset.value+'_1920x1080.png';document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(png),10000);
+    status.textContent='1920 × 1080 PNG exported.';
+  } catch {
+    status.textContent='PNG export failed in this browser. Try again in a desktop browser.';
+  } finally {URL.revokeObjectURL(url);button.disabled=false;}
+});
+byId('exportFrame').addEventListener('click',()=>{
+  const status=byId('status'), canvas=document.createElement('canvas');
+  canvas.width=1920;canvas.height=1080;
+  drawViewfinder(canvas,frameOptions());
+  canvas.toBlob(blob=>{
+    if(!blob){status.textContent='Viewfinder export failed.';return;}
+    const url=URL.createObjectURL(blob), link=document.createElement('a');
+    link.href=url;link.download='Kinetic_Field_Viewfinder_'+preset.value+'_'+frameOptions().focal+'mm.png';
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+    status.textContent='1920 × 1080 viewfinder PNG exported.';
+  },'image/png');
+});
+loadPreset();
+const validNumbers=(a,n,low,high)=>Array.isArray(a)&&a.length===n&&a.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=low&&v<=high);
+const validShot=s=>!!s&&Object.hasOwn(presets,s.preset)&&['fit','field'].includes(s.view)&&
+  validNumbers(s.camera,2,-700,700)&&validNumbers(s.aim,2,-700,700)&&validNumbers(s.lenses,3,1,2000)&&
+  validNumbers([s.sensor,s.eye,s.targetHeight],3,0,150)&&s.sensor>=1&&
+  validNumbers([s.opacity],1,.05,.45)&&Number.isInteger(s.lens)&&s.lens>=0&&s.lens<=2&&
+  Array.isArray(s.visible)&&s.visible.length===3&&s.visible.every(v=>typeof v==='boolean')&&
+  typeof s.crowd==='boolean'&&typeof s.showStage==='boolean'&&validNumbers([s.stageY],1,-150,650);
+mountShow({key:'kinetic-lens-show-v1',validate:validShot,seconds:4,
+  read:()=>({preset:preset.value,view:byId('view').value,camera:[...state.camera],aim:[...state.aim],
+    lenses:[...state.lenses],sensor:state.sensor,stageY:state.stageY,opacity:state.opacity,visible:[...state.visible],showStage:state.showStage,
+    eye:viewfinderState.eye,targetHeight:viewfinderState.targetHeight,lens:viewfinderState.lens,crowd:viewfinderState.showCrowd}),
+  apply:s=>{
+    preset.value=s.preset;byId('view').value=s.view;
+    Object.assign(state,{camera:[...s.camera],aim:[...s.aim],lenses:[...s.lenses],sensor:s.sensor,stageY:s.stageY,opacity:s.opacity,visible:[...s.visible],showStage:s.showStage});
+    Object.assign(viewfinderState,{eye:s.eye,targetHeight:s.targetHeight,lens:s.lens,showCrowd:s.crowd});
+    s.visible.forEach((v,i)=>byId('vis'+i).checked=v);
+    byId('crowdToggle').checked=s.crowd;byId('showStage').checked=s.showStage;byId('opacity').value=Math.round(s.opacity*100);
+    render();
+  }
+});
+</script>
+</body>
+</html>

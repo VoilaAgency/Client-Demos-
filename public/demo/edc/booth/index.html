@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Kinetic Field booth camera and lighting simulator.">
+<title>Kinetic Field / Booth Viewfinder</title>
+<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="show.css">
+<script defer src="viewfinder.js?v=7"></script>
+<script defer src="show.js"></script>
+<script defer src="booth.js?v=7"></script>
+<link rel="stylesheet" href="/tool-shell.css"></head>
+<body><a class="voila-return" href="../" aria-label="Back to the EDC demo room"><span aria-hidden="true">←</span> VOILA / DEMO ROOM</a>
+<header class="page-header">
+  <div><p class="eyebrow">EDC LAS VEGAS / KINETIC FIELD / FOH CONTROL</p><h1>Booth Viewfinder</h1></div>
+  <nav aria-label="Viewfinder links"><a href="../kinetic/">Kinetic lens plot</a><a href="../drone/">Speedway drone</a></nav>
+</header>
+<main>
+  <div class="layout">
+    <div class="visuals">
+      <section class="panel" aria-labelledby="finder-title">
+        <header class="panel-head"><h2 id="finder-title">01 / Camera feed</h2><span>FR7 / FULL FRAME / 16:9</span></header>
+        <div class="monitor">
+          <canvas id="backdrop" width="800" height="450" aria-hidden="true"></canvas>
+          <div id="backdropTint" aria-hidden="true"></div>
+          <div id="backdropWash" aria-hidden="true"></div>
+          <canvas id="feed" width="1200" height="675" aria-label="Simulated view through the booth camera"></canvas>
+          <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+        </div>
+        <div class="meters" aria-label="Camera measurements">
+          <div><span>FOCAL LENGTH</span><strong id="mFocal"></strong></div>
+          <div><span>H × V FIELD OF VIEW</span><strong id="mFov"></strong></div>
+          <div><span>PAN / TILT</span><strong id="mAngles"></strong></div>
+          <div><span>RAIL OFFSET</span><strong id="mRail"></strong></div>
+          <div><span>LENS HEIGHT / FLOOR</span><strong id="mHeight"></strong></div>
+        </div>
+      </section>
+      <section class="panel plan" aria-labelledby="plan-title">
+        <header class="panel-head"><h2 id="plan-title">02 / Booth plan</h2><span>TOP DOWN / FEET &amp; INCHES</span></header>
+        <svg id="map" viewBox="0 0 600 300" role="img" aria-label="Booth top-down plan. The camera moves only on the horizontal slider.">
+          <defs><pattern id="grid" width="35" height="35" patternUnits="userSpaceOnUse"><path d="M35 0H0V35" fill="none" stroke="#18232e"/></pattern></defs>
+          <rect width="600" height="300" fill="#0b1018"/><rect width="600" height="300" fill="url(#grid)"/>
+          <rect x="122" y="73" width="356" height="77" rx="5" class="deck"/>
+          <rect x="122" y="151" width="356" height="99" rx="5" class="shelf"/>
+          <path id="cone" fill="#aa9bfb" fill-opacity=".23" stroke="#ad9efb" stroke-opacity=".62"/>
+          <g class="gear">
+            <rect x="139" y="81" width="62" height="55" rx="3"/><circle cx="170" cy="104" r="14"/>
+            <rect x="211" y="81" width="62" height="55" rx="3"/><circle cx="242" cy="104" r="14"/>
+            <rect x="281" y="81" width="38" height="55" rx="3"/><path d="M289 98h22m-22 10h22m-22 10h22"/>
+            <rect x="327" y="81" width="62" height="55" rx="3"/><circle cx="358" cy="104" r="14"/>
+            <rect x="399" y="81" width="62" height="55" rx="3"/><circle cx="430" cy="104" r="14"/>
+          </g>
+          <circle cx="300" cy="67" r="10" fill="#8c9bad"/><text x="320" y="71">DJ</text>
+          <text x="135" y="174">RECESS −8 IN</text>
+          <line id="barA" x1="242" x2="295" y1="192" y2="192" stroke-width="5" stroke-linecap="round"/>
+          <line id="barB" x1="305" x2="358" y1="192" y2="192" stroke-width="5" stroke-linecap="round"/>
+          <text x="376" y="196">LED BARS</text>
+          <path d="M233 214H367" stroke="#58677c" stroke-width="7" stroke-linecap="round"/>
+          <text x="379" y="219">SLIDER</text>
+          <g id="marker"><circle r="11" fill="#121824" stroke="#d9d2ff" stroke-width="2"/><path d="M0 -6L4 2H-4Z" fill="#f0eaff"/></g>
+          <rect id="railDrag" x="224" y="201" width="152" height="31" fill="transparent"/>
+          <path d="M496 67h14m-7 0v147m-7 0h14" stroke="#8796a9" fill="none"/>
+          <text x="515" y="125">4′ 2″</text><text x="515" y="142">TO DJ*</text>
+          <text x="300" y="278" text-anchor="middle">AUDIENCE SIDE</text>
+        </svg>
+        <p class="panel-note">Drag the carriage left or right. The recessed shelf is 8 in below the decks. *Camera distance and rail travel are mockup dimensions.</p>
+      </section>
+    </div>
+    <aside class="controls" aria-label="FOH controls">
+      <section class="panel control-panel">
+        <header class="panel-head"><h2>FR7 / PTZ</h2><button type="button" id="home">Home</button></header>
+        <div class="aim-row"><button id="aimLock" type="button" aria-pressed="false">Aim Lock</button><span id="aimStatus">Manual pan and tilt</span></div>
+        <div id="dpad" aria-label="Pan and tilt buttons">
+          <button type="button" class="up" data-axis="tilt" data-step="1" aria-label="Tilt up">↑</button>
+          <button type="button" class="left" data-axis="pan" data-step="-1" aria-label="Pan left">←</button>
+          <button type="button" class="right" data-axis="pan" data-step="1" aria-label="Pan right">→</button>
+          <button type="button" class="down" data-axis="tilt" data-step="-1" aria-label="Tilt down">↓</button>
+          <button type="button" class="minus" data-axis="focal" data-step="-1" aria-label="Zoom out">−</button>
+          <button type="button" class="plus" data-axis="focal" data-step="1" aria-label="Zoom in">+</button>
+        </div>
+        <div id="cameraControls" class="sliders"></div>
+        <p class="panel-note"><kbd>↑</kbd> <kbd>↓</kbd> tilt · <kbd>←</kbd> <kbd>→</kbd> pan · <kbd>−</kbd> <kbd>+</kbd> zoom · <kbd>A</kbd> <kbd>D</kbd> rail<br>Hold <kbd>Shift</kbd> for larger steps. Height is measured to the lens center. The modeled deck is 38 in above the floor.</p>
+      </section>
+      <section class="panel control-panel">
+        <header class="panel-head"><h2>FOH / Lighting</h2><button type="button" id="lightsHome">Reset</button></header>
+        <div class="aim-row"><button id="lightLink" type="button" aria-pressed="false">Link L/R</button><span id="lightLinkStatus">Bars adjust independently</span></div>
+        <fieldset><legend><i id="chipA"></i> FRONT BAR A / FRAME LEFT</legend><div id="controlsA" class="sliders"></div></fieldset>
+        <fieldset><legend><i id="chipB"></i> FRONT BAR B / FRAME RIGHT</legend><div id="controlsB" class="sliders"></div></fieldset>
+        <fieldset><legend><i id="chipBack"></i> BACKLIGHT</legend><div id="controlsBack" class="sliders"></div>
+        <label class="color-row" for="backColor">Color <input id="backColor" type="color" value="#7787ff"></label></fieldset>
+        <div class="backdrop-controls">
+          <label for="backdropFile">Backdrop PNG</label>
+          <input id="backdropFile" type="file" accept="image/png,.png">
+          <button id="backdropReset" type="button" disabled>Use black</button>
+          <span id="backdropStatus" role="status">Infinity black · PNG stays in this tab</span>
+        </div>
+        <p class="panel-note">Front bars sit on the DJ side of the rail. Each front bar has its own white temperature and dimmer. Rear color and dimmer are independent. Uploaded PNGs sit on a virtual plane 5 ft behind the DJ and follow camera perspective. Set both front bars to 0% for a silhouette against a lit backdrop. High levels simulate clipped highlights.</p>
+      </section>
+    </aside>
+  </div>
+  <div id="show" class="show-panel"></div>
+  <footer>FOH PLANNING SIMULATOR / PHOTO-BASED FRAMING &amp; LIGHTING PREVIEW</footer>
+</main>
+</body>
+</html>
