@@ -1,0 +1,16 @@
+[hidden]{display:none!important}
+.switches{display:flex;gap:6px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line)}
+.switches button,.wall-settings select{font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.045em;text-transform:uppercase;padding:6px 9px}
+button[aria-pressed="true"]{border-color:var(--accent);color:#e7dfff;background:#302948}
+.wall-settings{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;font-size:12px}
+.wall-settings select{background:#151e2b;border:1px solid var(--line);border-radius:4px;color:var(--text)}
+.map-legend{position:absolute;bottom:10px;left:12px;display:flex;gap:12px;flex-wrap:wrap;font:600 10px ui-monospace,monospace;color:#c4b9ff;pointer-events:none}
+.map-legend span:nth-child(2){color:#80e4e9}.map-legend span:nth-child(3){color:#ffc38f}
+#plot{display:block;width:100%;background:#0b1018;touch-action:none}
+#plot text{font:11px ui-monospace,monospace;fill:#a8b9ce;letter-spacing:.07em}
+#plot [data-drag]{cursor:grab}
+#plot [data-drag=slider]{cursor:ew-resize}
+#lights .color-row{padding-bottom:10px}
+
+.focal-controls{padding:8px 12px;border-bottom:1px solid var(--line)}
+.focal-controls .control{grid-template-columns:85px minmax(35px,1fr) 64px 22px}

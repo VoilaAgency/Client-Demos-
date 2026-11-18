@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kinetic Field Viewfinder</title>
 <meta name="description" content="A synchronized overhead camera plot and simulated 16:9 viewfinder for Kinetic Field.">
-<link rel="stylesheet" href="show.css">
+<link rel="stylesheet" href="show.css?v=20261118">
 <style>
 :root{color-scheme:dark;--bg:#101820;--panel:#16232e;--line:#2c414f;--fg:#e3edf1;--muted:#a0b5c3;--cyan:#4ccdeb;--amber:#ffb85c;--lavender:#bca2ef;font:15px system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg)}button,input,select{font:inherit;color:inherit}button,select,input[type=number]{border:1px solid #435969;border-radius:5px;background:#111e28;padding:7px 9px;min-width:0}button,select{cursor:pointer}button:hover{border-color:var(--cyan)}:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}input[type=range]{width:100%;accent-color:var(--accent,var(--cyan));margin:5px 0 2px}input[type=checkbox]{accent-color:var(--accent,var(--cyan))}output{font-variant-numeric:tabular-nums}
@@ -19,8 +19,11 @@
 .view-pair .canvas svg{max-height:clamp(235px,33vh,380px);min-height:0}.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.actions label{display:flex;align-items:center;gap:6px}.secondary{color:var(--muted)}
 @media(max-width:720px){.view-pair .canvas svg{max-height:none}.frame canvas{max-height:none}.viewfinder-top{gap:8px}}
 .nav-link{display:inline-block;color:var(--fg);padding:7px 9px;border:1px solid #435969;border-radius:5px;text-decoration:none}.nav-link:hover{border-color:var(--cyan)}
+.camera-presets h2{margin:0 0 8px}.camera-presets details{border:1px solid #2a414f;border-radius:6px;background:#111e28}
+.camera-presets summary{padding:9px 11px;cursor:pointer}.preset-fields{display:flex;flex-wrap:wrap;align-items:end;gap:8px;padding:0 11px 11px}.preset-fields label{flex:1 1 210px}
+[hidden]{display:none!important}.cable-controls{margin-top:10px}
 </style>
-<link rel="stylesheet" href="/tool-shell.css"></head>
+<link rel="stylesheet" href="/tool-shell.css?v=20261118"></head>
 <body><a class="voila-return" href="../" aria-label="Back to the EDC demo room"><span aria-hidden="true">←</span> VOILA / DEMO ROOM</a>
 <main class="shell">
   <header class="bar">
@@ -31,38 +34,49 @@
       <button id="exportFrame" class="export" type="button">Export viewfinder</button>
     </div>
   </header>
-  <section id="show" class="show-panel" aria-label="Show presets"></section>
   <div class="layout">
     <div class="view-pair">
       <div class="canvas">
-        <div class="panel-title viewfinder-top"><span class="label">Live viewfinder / 16:9</span><label class="label">Lens <select id="frameLens"></select></label></div>
-        <div class="frame"><canvas id="viewfinder" width="1280" height="720" role="img" aria-label="Simulated camera view of the stage and crowd"><span>Simulated camera view of the stage and crowd.</span></canvas><div class="reticle" aria-hidden="true"></div></div>
+        <div class="panel-title viewfinder-top"><span class="label">Live viewfinder / 16:9</span><div class="actions"><label class="label">Camera <select id="cameraMode"><option value="ground">Ground camera</option><option value="cable">Cable Cam</option></select></label><label class="label">Lens <select id="frameLens"></select></label></div></div>
+        <div class="frame"><canvas id="viewfinder" width="1280" height="720" role="img" aria-label="Simulated camera view of the stage, crowd, and FOH risers"><span>Simulated camera view of the stage and crowd.</span></canvas><div class="reticle" aria-hidden="true"></div></div>
         <div class="viewfinder-caption" id="frameReadout"></div>
       </div>
       <div class="canvas">
-        <div class="panel-title"><span class="label">Overhead / feet</span><span class="plot-hint">Drag CAMERA or AIM</span><label class="label">View <select id="view"><option value="fit">Fit setup</option><option value="field">Full field</option></select></label></div>
+        <div class="panel-title"><span class="label">Overhead / feet</span><span class="plot-hint" id="plotHint">Drag CAMERA or AIM</span><label class="label">View <select id="view"><option value="fit">Fit setup</option><option value="field">Full field</option></select></label></div>
         <svg id="plot" viewBox="0 0 940 620" role="img" aria-label="Top-down lens coverage plot. Camera and aim can also be changed with the numeric fields."></svg>
         <div class="caption"><span>Stage R = audience left (−X)</span><span>Stage L = audience right (+X)</span><span>+Y toward audience</span></div>
       </div>
-      <p class="hint">Planning geometry from Workbook 08. Stage, crowd and elevations are illustrative. The viewfinder uses a rectilinear lens model and a simplified 3D scene. The overhead plot reports horizontal coverage.</p>
       <p class="status" id="status" role="status"></p>
     </div>
     <aside class="controls" aria-label="Camera and lens settings">
       <section>
-        <div class="section-top"><h2>01 / Camera setup</h2><button id="reset" type="button">Reset preset</button></div>
-        <label class="full"><span class="label">Position preset</span><select id="preset"></select></label>
-        <div class="fields">
+        <div class="section-top"><h2>01 / Camera setup</h2></div>
+
+        <div class="fields" id="groundPosition">
           <label><span class="label">Camera X · ft</span><input id="cx" type="number" step="0.1" min="-500" max="500"></label>
           <label><span class="label">Camera Y · ft</span><input id="cy" type="number" step="0.1" min="-150" max="650"></label>
           <label><span class="label">Aim X · ft</span><input id="ax" type="number" step="0.1" min="-500" max="500"></label>
           <label><span class="label">Aim Y · ft</span><input id="ay" type="number" step="0.1" min="-150" max="650"></label>
           <label><span class="label">Throw · ft</span><input id="distance" type="number" step="0.1" min="0.1" max="1250"></label>
-          <label><span class="label">Stage-front Y · ft</span><input id="stageY" type="number" step="0.1" min="-150" max="650" value="10"></label>
+
         </div>
-        <p class="metric">Throw moves the camera along its current aim line.</p>
-        <div class="fields" style="margin-top:8px">
+        <label class="full"><span class="label">Stage-front Y · ft</span><input id="stageY" type="number" step="0.1" min="-150" max="650"></label>
+        <label class="full"><span class="label">Plot scale · ft per 100 source pixels</span><input id="plotScale" type="number" min="20" max="75" step="any"></label>
+        <p class="metric" id="plotDimensions"></p>
+        <p class="metric" id="groundHint">Throw moves the camera along its current aim line.</p>
+        <div class="fields" id="groundHeight" style="margin-top:8px">
           <label><span class="label">Camera height · ft</span><input id="eye" type="number" step="0.1" min="1" max="150"></label>
           <label><span class="label">Aim height · ft</span><input id="targetHeight" type="number" step="0.1" min="0" max="150"></label>
+        </div>
+        <div id="cableControls" class="cable-controls" hidden>
+          <label class="full"><span class="label">Cable travel · <output id="cableTravelLabel"></output></span><input id="cableTravel" type="range" min="0" max="100" step="0.1"></label>
+          <div class="fields">
+            <label><span class="label">Cable height · ft</span><input id="cableHeight" type="number" min="1" max="150" step="0.1"></label>
+            <label><span class="label">Pan · °</span><input id="cablePan" type="number" min="-75" max="75" step="0.1"></label>
+            <label><span class="label">Tilt · °</span><input id="cableTilt" type="number" min="-85" max="45" step="0.1"></label>
+          </div>
+          <label class="metric"><input id="cableLockDJ" type="checkbox"> Lock aim on DJ</label>
+          <p class="metric">Drag Cable Cam along the diagonal line or adjust travel here. Positive pan is toward Stage L. Positive tilt is up.</p>
         </div>
         <label class="metric"><input id="crowdToggle" type="checkbox" checked> Show crowd in viewfinder</label>
       </section>
@@ -80,12 +94,80 @@
 
     </aside>
   </div>
+  <section class="show-panel camera-presets" aria-labelledby="cameraPresetsHeading">
+    <h2 class="label" id="cameraPresetsHeading">Camera presets</h2>
+    <details name="camera-preset-arrays">
+      <summary>2026 Array</summary>
+      <div class="preset-fields">
+        <label class="full"><span class="label">Camera position</span><select id="preset"></select></label>
+        <button id="reset" type="button">Reset preset</button>
+      </div>
+    </details>
+  </section>
+  <section id="show" class="show-panel" aria-label="Show presets"></section>
 </main>
-<script src="viewfinder.js"></script>
-<script src="show.js"></script>
+<script src="viewfinder.js?v=20261118"></script>
+<script src="show.js?v=20261118"></script>
 <script>
 'use strict';
+// Coordinates traced on the supplied 2048 × 1582 plan, before rotation.
+const plot2026 = {
+  origin: [1533,783], stageFront:1475, rail:1437, stageEnds:[416,1150],
+  audience:[[1437,392],[1451,352],[1490,305],[1480,166],[1404,109],[1291,50],[1128,27],
+    [975,24],[884,61],[841,314],[805,468],[659,416],[626,590],[545,627],[378,636],
+    [374,903],[507,908],[569,989],[592,1133],[714,1268],[747,1387],[934,1393],
+    [995,1322],[1117,1318],[1254,1360],[1428,1291],[1437,1145]],
+  foh:[[852,839],[954,846],[977,871],[975,911],[857,921],[839,895],[839,857]],
+  nearStageFOH:[
+    [[1064,586],[1136,584],[1149,603],[1146,680],[1130,698],[1074,696],[1056,678],[1057,602]],
+    [[1066,860],[1126,858],[1145,871],[1146,950],[1133,970],[1070,971],[1053,957],[1055,881]]
+  ],
+  divider:[[1434,910],[1143,910]], crossAisle:[[1060,961],[999,1008],[873,1048],[741,1093]],
+  camera1:[895,683], camera2:[1051,1117], crane:[1064,453]
+};
+// Approximate outlines for the three camera platforms traced from the plot.
+const cameraPlatforms=[
+  [[849,634],[902,633],[914,645],[911,693],[899,702],[850,699],[844,686],[844,649]],
+  [[1004,1125],[1062,1104],[1079,1154],[1019,1175]],
+  [[1027,381],[1107,410],[1079,483],[1004,456]]
+];
+const siteBoundary=[[585,20],[850,20],[1135,20],[1415,45],[1625,115],[1710,234],[1825,407],
+  [1883,579],[1885,785],[1860,1008],[1782,1160],[1735,1291],[1620,1430],[1490,1490],
+  [1330,1550],[1150,1550],[870,1550],[600,1550],[350,1545],[330,1300],[320,1070],
+  [285,920],[310,750],[320,580],[355,413],[386,287],[420,148],[485,59]];
+// Corners run along the sightline-facing edge first, then along the rear edge.
+const vipDecks=[
+  {label:'REAR VIP NORTH',corners:[[796,470],[894,104],[691,42],[585,407]],heights:[8,12,16]},
+  {label:'REAR VIP SOUTH',corners:[[698,1224],[753,1388],[589,1441],[535,1284]],heights:[7,11,15]}
+];
+// Detached deck footprints and cable anchors traced from the marked-up plot.
+const perimeterPlatforms=[
+  [[546,407],[674,447],[623,604],[493,565]],
+  [[463,996],[611,949],[656,1100],[514,1149]],
+  [[510,1152],[657,1108],[698,1224],[548,1270]],
+  [[1265,1360],[1353,1327],[1390,1423],[1303,1457]]
+];
+const cableAnchors=[
+  {point:[511,609],footprint:[[436,582],[489,579],[573,589],[574,632],[491,639],[437,634]]},
+  {point:[1087,1468],footprint:[[974,1320],[1128,1313],[1143,1550],[988,1560]]}
+];
+const cableRoute=cableAnchors.map(anchor=>anchor.point);
+const productionDecks=[
+  ...[plot2026.foh,...cameraPlatforms].map((footprint,i)=>({footprint,height:7,equipmentStacks:i===0?3:2})),
+  ...plot2026.nearStageFOH.map(footprint=>({footprint,height:7,label:"FOH"})),
+  ...perimeterPlatforms.map(footprint=>({footprint,height:7})),
+  ...cableAnchors.map(({footprint})=>({footprint,height:7}))
+];
+const defaultCable={travel:50,height:35,pan:0,tilt:-5,lockDJ:false};
+const defaultScale=20/45;
+const worldPoint=([px,py],scale)=>[(py-plot2026.origin[1])*scale,(plot2026.origin[0]-px)*scale];
+const frontAt=scale=>worldPoint([plot2026.stageFront,0],scale)[1];
+const railAt=scale=>worldPoint([plot2026.rail,0],scale)[1];
+const widthAt=scale=>(plot2026.stageEnds[1]-plot2026.stageEnds[0])*scale;
 const presets = {
+  mapCam1:{name:'2026 / Camera 1 · audience platform',source:plot2026.camera1,sensor:36,lenses:[35,100,435]},
+  mapCam2:{name:'2026 / Camera 2 · proposed position',source:plot2026.camera2,sensor:36,lenses:[35,100,435]},
+  mapCrane:{name:'2026 / Camera 7 · crane position',source:plot2026.crane,sensor:36,lenses:[35,85,145]},
   foh: {name:'FOH / center', camera:[0,250], aim:[0,0], sensor:36, lenses:[35,100,435]},
   sl: {name:'Stage L / wing slash', camera:[200,180], aim:[0,0], sensor:36, lenses:[35,100,435]},
   sr: {name:'Stage R / wing slash', camera:[-200,180], aim:[0,0], sensor:36, lenses:[35,100,435]},
@@ -101,30 +183,48 @@ const series = [{name:'Wide',color:'#4ccdeb'},{name:'Midrange',color:'#ffb85c'},
 const byId = id => document.getElementById(id);
 const svg = byId('plot');
 const preset = byId('preset');
-const W = 940, H = 620, stageWidth = 440, floorWidth = 800, floorEnd = 530, railY = 30;
+const W = 940, H = 620;
 const bounds = {cx:[-500,500],cy:[-150,650],ax:[-500,500],ay:[-150,650]};
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi,n));
 const round = n => Math.round(n*10)/10;
 const display = n => n.toFixed(1);
-const state = {camera:[0,250],aim:[0,0],direction:[0,-1],sensor:36,stageY:10,opacity:.22,visible:[true,true,true],lenses:[35,100,435],showStage:true};
+const state = {camera:[0,250],aim:[0,0],direction:[0,-1],sensor:36,stageY:frontAt(defaultScale),plotScale:defaultScale,opacity:.22,visible:[true,true,true],lenses:[35,100,435],showStage:true};
 let transform, drag = null;
+let cameraMode='ground', cable={...defaultCable};
+const radians=degrees=>degrees*Math.PI/180;
+
+function activeCamera() {
+  if(cameraMode==='ground')return {camera:state.camera,aim:state.aim,eye:viewfinderState.eye,targetHeight:viewfinderState.targetHeight};
+  const [left,right]=cableRoute.map(point=>worldPoint(point,state.plotScale));
+  const camera=left.map((value,i)=>value+(right[i]-value)*cable.travel/100);
+  if(cable.lockDJ)return {camera,aim:[0,-1.65],eye:cable.height,targetHeight:11.8};
+  const depth=camera[1]-state.stageY;
+  const aimDepth=Math.max(1,depth);
+  const aim=[camera[0]+Math.tan(radians(cable.pan))*aimDepth,camera[1]-aimDepth];
+  return {camera,aim,eye:cable.height,tilt:cable.tilt,targetHeight:cable.height+Math.tan(radians(cable.tilt))*Math.hypot(aim[0]-camera[0],aimDepth)};
+}
 const viewfinderState={eye:9,targetHeight:11.8,lens:0,showCrowd:true};
 const frameLens=byId('frameLens');
 let pendingFrame=0;
-const heights={foh:[9,11.8],sl:[10,11.8],sr:[10,11.8],pitR:[5.5,11.8],pitL:[5.5,11.8],pitCrowd:[5.5,5.6],rail:[5,11.8],railR:[5,11.8],deck:[11.5,11.8],deckCenter:[11.5,11.8]};
+const heights={mapCam1:[9,11.8],mapCam2:[9,11.8],mapCrane:[9,11.8],foh:[9,11.8],sl:[10,11.8],sr:[10,11.8],pitR:[5.5,11.8],pitL:[5.5,11.8],pitCrowd:[5.5,5.6],rail:[5,11.8],railR:[5,11.8],deck:[11.5,11.8],deckCenter:[11.5,11.8]};
 
 function frameOptions() {
-  return {camera:state.camera,aim:state.aim,stageFront:state.stageY,sensor:state.sensor,
-    focal:state.lenses[viewfinderState.lens],eye:viewfinderState.eye,
-    targetHeight:viewfinderState.targetHeight,showCrowd:viewfinderState.showCrowd};
+  return {...activeCamera(),stageFront:state.stageY, stageWidth:widthAt(state.plotScale), railY:railAt(state.plotScale),
+    audience:plot2026.audience.map(point=>worldPoint(point,state.plotScale)),
+    risers:productionDecks.map(deck=>({
+      ...deck,footprint:deck.footprint.map(point=>worldPoint(point,state.plotScale))
+    })),
+    vip:vipDecks.map(deck=>({...deck,corners:deck.corners.map(point=>worldPoint(point,state.plotScale))})),
+    sensor:state.sensor,
+    focal:state.lenses[viewfinderState.lens],showCrowd:viewfinderState.showCrowd};
 }
 function updateViewfinder(skip='') {
-  const {focal,sensor,eye,targetHeight}=frameOptions();
-  const horizontal=Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]);
-  const pitch=Math.atan2(targetHeight-eye,horizontal)*180/Math.PI;
+  const {camera,aim,focal,sensor,eye,targetHeight,tilt}=frameOptions();
+  const horizontal=Math.hypot(aim[0]-camera[0],aim[1]-camera[1]);
+  const pitch=tilt??Math.atan2(targetHeight-eye,horizontal)*180/Math.PI;
   const hfov=2*Math.atan(sensor/(2*focal))*180/Math.PI;
   const vfov=2*Math.atan(sensor*9/(16*2*focal))*180/Math.PI;
-  for(const [id,value] of Object.entries({eye,targetHeight}))if(id!==skip)byId(id).value=round(value);
+  for(const [id,value] of Object.entries({eye:viewfinderState.eye,targetHeight:viewfinderState.targetHeight}))if(id!==skip)byId(id).value=round(value);
   const options=series.map((s,i)=>s.name+' · '+state.lenses[i]+' mm');
   options.forEach((label,i)=>frameLens.options[i].textContent=label);
   frameLens.value=viewfinderState.lens;
@@ -158,19 +258,24 @@ function svgLabel(x,y,value,color='#a0b5c3',anchor='start',size=13) {
   return '<text x="'+x+'" y="'+y+'" fill="'+color+'" text-anchor="'+anchor+'" font-size="'+size+'">'+value+'</text>';
 }
 function frame() {
-  const [x,y]=state.camera, [a,b]=state.aim;
+  const {camera,aim}=activeCamera();
+  const [x,y]=camera, [a,b]=aim;
   let left,right,top,bottom;
   if (byId('view').value==='field') {
-    left=Math.min(-450,x-35,a-35); right=Math.max(450,x+35,a+35);
-    top=Math.min(-80,y-35,b-35,state.stageY-30); bottom=Math.max(555,y+35,b+35,state.stageY+30);
+    const footprint=siteBoundary.map(point=>worldPoint(point,state.plotScale));
+    const focus=cameraMode==='cable'?camera:aim;
+    left=Math.min(x,focus[0],...footprint.map(point=>point[0]))-15;
+    right=Math.max(x,focus[0],...footprint.map(point=>point[0]))+15;
+    top=Math.min(y,focus[1],state.stageY,...footprint.map(point=>point[1]))-15;
+    bottom=Math.max(y,focus[1],state.stageY,...footprint.map(point=>point[1]))+15;
   } else {
     const wide = Math.hypot(x-a,y-b)>105;
     const extents = state.lenses.flatMap((f,i)=>{
       if (!state.visible[i]) return [];
-      return lensGeometry(state.camera,state.aim,state.sensor,f,state.stageY)?.atAim ?? [];
+      return lensGeometry(camera,aim,state.sensor,f,state.stageY)?.atAim ?? [];
     });
-    const xs=[x,a,...extents.map(p=>p[0]),...(wide?[-245,245]:[-10,10])];
-    const ys=[y,b,state.stageY,...extents.map(p=>p[1]),...(wide?[-30]:[-13,15])];
+    const xs=[x,a,...extents.map(p=>p[0]),...(wide?plot2026.stageEnds.map(py=>worldPoint([0,py],state.plotScale)[0]):[-10,10])];
+    const ys=[y,b,state.stageY,...extents.map(p=>p[1]),...(wide?[-30]:[-13,railAt(state.plotScale)])];
     const pad=Math.max(7, Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))*.12);
     left=Math.min(...xs)-pad;right=Math.max(...xs)+pad;top=Math.min(...ys)-pad;bottom=Math.max(...ys)+pad;
   }
@@ -178,12 +283,20 @@ function frame() {
   return {scale, x:W/2-(left+right)/2*scale,y:H/2-(top+bottom)/2*scale};
 }
 function makePlot(t, geometries) {
+  const {camera,aim}=activeCamera();
   const X=x=>t.x+x*t.scale, Y=y=>t.y+y*t.scale;
   const p=([x,y])=>X(x)+','+Y(y);
   const left=(20-t.x)/t.scale,right=(W-20-t.x)/t.scale,top=(24-t.y)/t.scale,bottom=(H-26-t.y)/t.scale;
   const steps=[1,2,5,10,20,25,50,100,200,500];
   const step=steps.find(n=>n*t.scale>=43)||500;
-  const stageY=state.stageY;
+  const stageY=state.stageY, railY=railAt(state.plotScale);
+  const planPoint=point=>p(worldPoint(point,state.plotScale));
+  const planArea=(points,fill,stroke)=>'<polygon points="'+points.map(planPoint).join(' ')+'" fill="'+fill+'" stroke="'+stroke+'"/>';
+  const planLine=points=>'<polyline points="'+points.map(planPoint).join(' ')+'" fill="none" stroke="#5b7481" stroke-width="2"/>';
+  const planLabel=(point,label)=>{
+    const [x,y]=worldPoint(point,state.plotScale);
+    return svgLabel(X(x),Y(y),label,'#c9d8df','middle',11);
+  };
   let grid='', axes='';
   for (let x=Math.ceil(left/step)*step;x<right;x+=step) {
     grid+='<path d="M'+X(x)+' 24V'+(H-26)+'"/>';
@@ -194,28 +307,56 @@ function makePlot(t, geometries) {
     if(y) axes+=svgLabel(23,Y(y)-4,y,'#a0b5c3','start',11);
   }
   let marks='<rect x="20" y="24" width="'+(W-40)+'" height="'+(H-50)+'" fill="#121f29"/>';
-  marks+='<g clip-path="url(#plot-clip)"><rect x="'+X(-floorWidth/2)+'" y="'+Y(railY)+'" width="'+floorWidth*t.scale+'" height="'+(floorEnd-railY)*t.scale+'" fill="#192c37" stroke="#3c5563"/>';
+  marks+='<g clip-path="url(#plot-clip)">';
+  const boundary=siteBoundary.map(spot=>worldPoint(spot,state.plotScale));
+  const midpoint=(a,b)=>p([(a[0]+b[0])/2,(a[1]+b[1])/2]);
+  const edge='M'+midpoint(boundary.at(-1),boundary[0])+boundary.map((v,i)=>' Q'+p(v)+' '+midpoint(v,boundary[(i+1)%boundary.length])).join('')+' Z';
+  marks+='<path d="'+edge+'" fill="#202d3c" stroke="#7c709b" stroke-width="2"/>';
+  marks+=planArea(plot2026.audience,'#192c37','#3c5563');
+  marks+=planArea([[1475,416],[1578,416],[1578,586],[1650,586],[1650,974],[1578,974],[1578,1150],[1475,1150]],'#263b49','#637e8d');
+  marks+=planLine(plot2026.divider)+planLine(plot2026.crossAisle);
+  for (const {corners,label} of vipDecks) {
+    marks+=planArea(corners,'#394052','#988aaf');
+    const center=corners.reduce(([x,y],[u,v])=>[x+u/4,y+v/4],[0,0]);
+    marks+=planLabel(center,label);
+  }
+  for (const {footprint,label} of productionDecks) {
+    marks+=planArea(footprint,'#365265','#99b7c6');
+    if(label){
+      const center=footprint.reduce(([x,y],[u,v])=>[x+u/footprint.length,y+v/footprint.length],[0,0]);
+      marks+=planLabel(center,label);
+    }
+  }
+  marks+=planLabel([910,886],'FOH');
+  const [cableLeft,cableRight]=cableRoute.map(planPoint);
+  marks+='<path d="M'+cableLeft+' L'+cableRight+'" fill="none" stroke="#dfb65f" stroke-width="'+(cameraMode==='cable'?2.6:1.3)+'" stroke-dasharray="6 4"/>';
+  marks+=planLabel([733,967],'CABLE CAM RUN');
+  for (const [point,label] of [[plot2026.camera1,'CAM 1'],[plot2026.camera2,'CAM 2 · PROPOSED'],[plot2026.crane,'CAM 7']]) {
+    const [x,y]=worldPoint(point,state.plotScale);
+    marks+='<circle cx="'+X(x)+'" cy="'+Y(y)+'" r="4" fill="#7d9ba9"/>';
+    marks+=svgLabel(X(x),Y(y)+16,label,'#b6cad4','middle',10);
+  }
   marks+='<g stroke="#293f4c" stroke-width="1">'+grid+'</g>';
   marks+='<path d="M'+X(0)+' 24V'+(H-26)+'" stroke="#4a6373" stroke-dasharray="4 6"/>';
   if (Y(stageY)>24 && Y(stageY)<H-26) {
     marks+='<path d="M20 '+Y(stageY)+'H'+(W-20)+'" stroke="#8398a6" stroke-dasharray="6 5"/>';
-    const sx=X(-stageWidth/2), ex=X(stageWidth/2);
+    const [sx,ex]=plot2026.stageEnds.map(py=>X(worldPoint([0,py],state.plotScale)[0]));
     marks+='<path d="M'+sx+' '+Y(stageY)+'H'+ex+'" stroke="#a0b5c3" stroke-width="2"/>';
     marks+=svgLabel(W-29,Y(stageY)-7,'STAGE FRONT','#a0b5c3','end',12);
   }
   if(Y(railY)>24 && Y(railY)<H-26){
-    marks+='<path d="M20 '+Y(railY)+'H'+(W-20)+'" stroke="#637e8d" stroke-dasharray="2 6"/>';
+    marks+='<path d="M'+X(worldPoint([0,392],state.plotScale)[0])+' '+Y(railY)+'H'+X(worldPoint([0,1145],state.plotScale)[0])+'" stroke="#637e8d" stroke-dasharray="2 6"/>';
     if(Math.abs(Y(railY)-Y(stageY))>21) marks+=svgLabel(W-29,Y(railY)+15,'AUDIENCE RAIL','#a0b5c3','end',11);
   }
   marks+='<rect x="'+X(-9)+'" y="'+Y(-2)+'" width="'+18*t.scale+'" height="'+4*t.scale+'" fill="#34515e" stroke="#77929f"/>';
   marks+=svgLabel(X(0),Y(-2)-7,'DJ BOOTH','#a0b5c3','middle',11);
-  const extent = Math.hypot(W,H)/t.scale+Math.max(...state.camera.map(Math.abs))+Math.max(...state.aim.map(Math.abs));
+  const extent = Math.hypot(W,H)/t.scale+Math.max(...camera.map(Math.abs))+Math.max(...aim.map(Math.abs));
   const active=geometries.map((g,i)=>({g,i})).filter(({g,i})=>g&&state.visible[i]).sort((a,b)=>b.g.width-a.g.width);
   for (const {g,i} of active) {
     const color=series[i].color;
-    marks+='<polygon points="'+p(state.camera)+' '+p(g.point(extent,-1))+' '+p(g.point(extent,1))+'" fill="'+color+'" fill-opacity="'+state.opacity+'" stroke="'+color+'" stroke-opacity=".8" stroke-width="1.2"/>';
+    marks+='<polygon points="'+p(camera)+' '+p(g.point(extent,-1))+' '+p(g.point(extent,1))+'" fill="'+color+'" fill-opacity="'+state.opacity+'" stroke="'+color+'" stroke-opacity=".8" stroke-width="1.2"/>';
   }
-  marks+='<path d="M'+p(state.camera)+'L'+p(state.aim)+'" stroke="#e3edf1" stroke-dasharray="5 5" opacity=".7"/>';
+  marks+='<path d="M'+p(camera)+'L'+p(aim)+'" stroke="#e3edf1" stroke-dasharray="5 5" opacity=".7"/>';
   for (const {g,i} of active) {
     const color=series[i].color;
     marks+='<path d="M'+p(g.atAim[0])+'L'+p(g.atAim[1])+'" stroke="'+color+'" stroke-width="2.5"/>';
@@ -223,7 +364,8 @@ function makePlot(t, geometries) {
       marks+='<circle cx="'+X(endpoint[0])+'" cy="'+Y(endpoint[1])+'" r="4" fill="'+color+'" stroke="#101820"/>';
     }
   }
-  for (const [id,point,label,color] of [['aim',state.aim,'AIM','#ffcf91'],['camera',state.camera,'CAMERA','#f4f8fa']]) {
+  const handles=cameraMode==='cable'?[['cable',camera,'CABLE CAM','#dfb65f']]:[['aim',aim,'AIM','#ffcf91'],['camera',camera,'CAMERA','#f4f8fa']];
+  for (const [id,point,label,color] of handles) {
     const x=X(point[0]),y=Y(point[1]);
     marks+='<g data-handle="'+id+'"><circle cx="'+x+'" cy="'+y+'" r="18" fill="transparent"/><circle cx="'+x+'" cy="'+y+'" r="'+(id==='aim'?6:8)+'" fill="#101820" stroke="'+color+'" stroke-width="2"/>';
     marks+=svgLabel(x+13,y+5,label,color,'start',13)+'</g>';
@@ -232,14 +374,34 @@ function makePlot(t, geometries) {
   return '<defs><clipPath id="plot-clip"><rect x="20" y="24" width="'+(W-40)+'" height="'+(H-50)+'"/></clipPath></defs><g font-family="system-ui, sans-serif">'+marks+axes+
     svgLabel(21,16,'STAGE R / −X','#a0b5c3')+svgLabel(W-21,16,'STAGE L / +X','#a0b5c3','end')+svgLabel(W/2,H-8,'X / FT','#a0b5c3','middle',11)+'</g>';
 }
-function geoms() {return state.lenses.map(f=>lensGeometry(state.camera,state.aim,state.sensor,f,state.stageY));}
+function geoms() {
+  const {camera,aim}=activeCamera();
+  return state.lenses.map(f=>lensGeometry(camera,aim,state.sensor,f,state.stageY));
+}
 function render({freeze=false, skip=''}={}) {
   const geometry = geoms();
-  if (geometry[0]) state.direction=[(state.aim[0]-state.camera[0])/geometry[0].distance,(state.aim[1]-state.camera[1])/geometry[0].distance];
+  if (cameraMode==='ground'&&geometry[0]) state.direction=[(state.aim[0]-state.camera[0])/geometry[0].distance,(state.aim[1]-state.camera[1])/geometry[0].distance];
   if (!freeze || !transform) transform=frame();
   svg.innerHTML=makePlot(transform,geometry);
-  const values={cx:state.camera[0],cy:state.camera[1],ax:state.aim[0],ay:state.aim[1],distance:Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]),sensor:state.sensor,stageY:state.stageY};
+  const values={cx:state.camera[0],cy:state.camera[1],ax:state.aim[0],ay:state.aim[1],distance:Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]),sensor:state.sensor,stageY:state.stageY,plotScale:Math.round(state.plotScale*100000)/1000};
   for (const [id,value] of Object.entries(values)) if(id!==skip) byId(id).value=round(value);
+  const isCable=cameraMode==='cable';
+  byId('cameraMode').value=cameraMode;
+  byId('groundPosition').hidden=isCable;
+  byId('groundHeight').hidden=isCable;
+  byId('groundHint').hidden=isCable;
+  byId('cableControls').hidden=!isCable;
+  byId('plotHint').textContent=isCable?'Drag Cable Cam along the line':'Drag CAMERA or AIM';
+  for (const [id,value] of Object.entries({cableTravel:cable.travel,cableHeight:cable.height,cablePan:cable.pan,cableTilt:cable.tilt})) {
+    if(id!==skip)byId(id).value=round(value);
+  }
+  byId('cableLockDJ').checked=cable.lockDJ;
+  byId('cablePan').disabled=cable.lockDJ;
+  byId('cableTilt').disabled=cable.lockDJ;
+  byId('cableTravelLabel').textContent=round(cable.travel)+'%';
+  const foh=worldPoint([910,879],state.plotScale);
+  byId('plotDimensions').textContent='Estimated: '+display(widthAt(state.plotScale))+' ft stage span · '+
+    display(Math.hypot(...foh))+' ft FOH center to booth · '+display(railAt(state.plotScale)-frontAt(state.plotScale))+' ft rail setback.';
   byId('format').value=state.sensor===36?'36':state.sensor===24?'24':'custom';
   byId('opacityValue').textContent=Math.round(state.opacity*100)+'%';
   geometry.forEach((g,i)=>{
@@ -254,8 +416,10 @@ function render({freeze=false, skip=''}={}) {
   updateViewfinder(skip);
 }
 function loadPreset() {
+  cameraMode='ground';
   const p=presets[preset.value];
-  state.camera=[...p.camera];state.aim=[...p.aim];state.sensor=p.sensor;state.stageY=10;
+  state.camera=p.source?worldPoint(p.source,state.plotScale):[...p.camera];
+  state.aim=p.source?[0,0]:[...p.aim];state.sensor=p.sensor;state.stageY=frontAt(state.plotScale);
   state.lenses=[...p.lenses];state.visible=[true,true,true];
   [viewfinderState.eye,viewfinderState.targetHeight]=heights[preset.value];
   series.forEach((_,i)=>byId('vis'+i).checked=true);
@@ -294,8 +458,28 @@ bindNumber('distance',v=>{
 });
 bindNumber('sensor',v=>state.sensor=v);
 bindNumber('stageY',v=>state.stageY=v);
+byId('plotScale').addEventListener('change',e=>{
+  const value=e.target.valueAsNumber;
+  if(Number.isFinite(value)&&value>=20&&value<=75){
+    const scale=value/100, ratio=scale/state.plotScale;
+    state.camera=state.camera.map(v=>v*ratio);
+    state.aim=state.aim.map(v=>v*ratio);
+    state.stageY*=ratio;
+    state.plotScale=scale;
+  }
+  render();
+});
 bindNumber('eye',v=>viewfinderState.eye=v);
 bindNumber('targetHeight',v=>viewfinderState.targetHeight=v);
+byId('cameraMode').addEventListener('change',e=>{
+  cameraMode=e.target.value;
+  render();
+});
+for (const key of ['height','pan','tilt']){
+  bindNumber('cable'+key[0].toUpperCase()+key.slice(1),value=>cable[key]=value);
+}
+byId('cableLockDJ').addEventListener('change',e=>{cable.lockDJ=e.target.checked;render()});
+byId('cableTravel').addEventListener('input',e=>{cable.travel=Number(e.target.value);render()});
 preset.addEventListener('change',loadPreset);
 byId('reset').addEventListener('click',loadPreset);
 byId('view').addEventListener('change',()=>render());
@@ -312,7 +496,7 @@ svg.addEventListener('pointerdown',e=>{
   if(!matrix) return;
   const point=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());
   const id=handle.dataset.handle;
-  drag={id,pointer:e.pointerId,start:[point.x,point.y],origin:[...state[id]],scale:transform.scale,moved:false};
+  drag={id,pointer:e.pointerId,start:[point.x,point.y],origin:id==='cable'?[cable.travel]:[...state[id]],scale:transform.scale,moved:false};
   svg.setPointerCapture(e.pointerId);
 });
 svg.addEventListener('pointermove',e=>{
@@ -321,6 +505,15 @@ svg.addEventListener('pointermove',e=>{
   if(!matrix) return;
   const pt=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());
   const offset=[(pt.x-drag.start[0])/drag.scale,(pt.y-drag.start[1])/drag.scale];
+  if(drag.id==='cable'){
+    const [start,end]=cableRoute.map(point=>worldPoint(point,state.plotScale));
+    const dx=end[0]-start[0],dy=end[1]-start[1];
+    const projected=(offset[0]*dx+offset[1]*dy)/(dx*dx+dy*dy);
+    cable.travel=clamp(drag.origin[0]+projected*100,0,100);
+    drag.moved=true;
+    render({freeze:true});
+    return;
+  }
   const keys=drag.id==='camera'?['cx','cy']:['ax','ay'];
   state[drag.id]=offset.map((value,i)=>round(clamp(drag.origin[i]+value,...bounds[keys[i]])));
   drag.moved=true;
@@ -331,8 +524,9 @@ for (const event of ['pointerup','pointercancel','lostpointercapture']) svg.addE
 
 function exportSVG() {
   const geometry=geoms();
-  const title=presets[preset.value].name.toUpperCase();
-  const c=state.camera.map(display).join(', '), a=state.aim.map(display).join(', ');
+  const title=cameraMode==='cable'?'CABLE CAM':presets[preset.value].name.toUpperCase();
+  const {camera,aim}=activeCamera();
+  const c=camera.map(display).join(', '), a=aim.map(display).join(', ');
   const esc=s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const lines=geometry.map((g,i)=>{
     if(!state.visible[i])return '';
@@ -346,8 +540,8 @@ function exportSVG() {
     '<svg x="65" y="170" width="1270" height="838" viewBox="0 0 940 620">'+makePlot(transform,geometry)+'</svg>'+
     svgLabel(1400,210,'CAMERA GEOMETRY','#e3edf1','start',24)+svgLabel(1400,246,'Camera '+c+' ft / aim '+a+' ft','#a0b5c3','start',18)+
     svgLabel(1400,277,display(state.sensor)+' mm active sensor width','#a0b5c3','start',20)+
-    svgLabel(1400,307,display(Math.hypot(state.aim[0]-state.camera[0],state.aim[1]-state.camera[1]))+' ft throw / stage front Y '+display(state.stageY)+' ft','#a0b5c3','start',18)+
-    lines+svgLabel(80,1043,'WORKBOOK 08 / 2D PLANNING GEOMETRY · DIMENSIONS ILLUSTRATIVE · +Y TOWARD AUDIENCE','#a0b5c3','start',18)+'</g></svg>';
+    svgLabel(1400,307,display(Math.hypot(aim[0]-camera[0],aim[1]-camera[1]))+' ft throw / stage front Y '+display(state.stageY)+' ft','#a0b5c3','start',18)+
+    lines+svgLabel(80,1043,'2026 CAMERA PLOT TRACE · '+display(state.plotScale*100)+' FT / 100 SOURCE PX · VERIFY SCALE · +Y TOWARD AUDIENCE','#a0b5c3','start',18)+'</g></svg>';
 }
 byId('export').addEventListener('click',async()=>{
   const button=byId('export'),status=byId('status');
@@ -360,7 +554,7 @@ byId('export').addEventListener('click',async()=>{
     const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
     if(!blob)throw Error('PNG encoder returned no image');
     const png=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=png;a.download='Kinetic_Field_'+preset.value+'_1920x1080.png';document.body.append(a);a.click();a.remove();
+    a.href=png;a.download='Kinetic_Field_'+(cameraMode==='cable'?'cable':preset.value)+'_1920x1080.png';document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(png),10000);
     status.textContent='1920 × 1080 PNG exported.';
   } catch {
@@ -374,27 +568,34 @@ byId('exportFrame').addEventListener('click',()=>{
   canvas.toBlob(blob=>{
     if(!blob){status.textContent='Viewfinder export failed.';return;}
     const url=URL.createObjectURL(blob), link=document.createElement('a');
-    link.href=url;link.download='Kinetic_Field_Viewfinder_'+preset.value+'_'+frameOptions().focal+'mm.png';
+    link.href=url;link.download='Kinetic_Field_Viewfinder_'+(cameraMode==='cable'?'cable':preset.value)+'_'+frameOptions().focal+'mm.png';
     document.body.append(link);link.click();link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),10000);
     status.textContent='1920 × 1080 viewfinder PNG exported.';
   },'image/png');
 });
+byId('view').value='field';
 loadPreset();
 const validNumbers=(a,n,low,high)=>Array.isArray(a)&&a.length===n&&a.every(v=>typeof v==='number'&&Number.isFinite(v)&&v>=low&&v<=high);
+const validCable=c=>c&&(c.lockDJ===undefined||typeof c.lockDJ==='boolean')&&[[c.travel,0,100],[c.height,1,150],[c.pan,-75,75],[c.tilt,-85,45]]
+  .every(([value,min,max])=>Number.isFinite(value)&&value>=min&&value<=max);
 const validShot=s=>!!s&&Object.hasOwn(presets,s.preset)&&['fit','field'].includes(s.view)&&
   validNumbers(s.camera,2,-700,700)&&validNumbers(s.aim,2,-700,700)&&validNumbers(s.lenses,3,1,2000)&&
   validNumbers([s.sensor,s.eye,s.targetHeight],3,0,150)&&s.sensor>=1&&
   validNumbers([s.opacity],1,.05,.45)&&Number.isInteger(s.lens)&&s.lens>=0&&s.lens<=2&&
   Array.isArray(s.visible)&&s.visible.length===3&&s.visible.every(v=>typeof v==='boolean')&&
+  (s.plotScale===undefined||(Number.isFinite(s.plotScale)&&s.plotScale>=.2&&s.plotScale<=.75))&&
+  (s.cameraMode===undefined||s.cameraMode==='ground'||s.cameraMode==='cable')&&
+  (s.cable===undefined?s.cameraMode!=='cable':validCable(s.cable))&&
   typeof s.crowd==='boolean'&&typeof s.showStage==='boolean'&&validNumbers([s.stageY],1,-150,650);
 mountShow({key:'kinetic-lens-show-v1',validate:validShot,seconds:4,
-  read:()=>({preset:preset.value,view:byId('view').value,camera:[...state.camera],aim:[...state.aim],
-    lenses:[...state.lenses],sensor:state.sensor,stageY:state.stageY,opacity:state.opacity,visible:[...state.visible],showStage:state.showStage,
+  read:()=>({cameraMode,cable:{...cable},preset:preset.value,view:byId('view').value,camera:[...state.camera],aim:[...state.aim],
+    lenses:[...state.lenses],sensor:state.sensor,stageY:state.stageY,plotScale:state.plotScale,opacity:state.opacity,visible:[...state.visible],showStage:state.showStage,
     eye:viewfinderState.eye,targetHeight:viewfinderState.targetHeight,lens:viewfinderState.lens,crowd:viewfinderState.showCrowd}),
   apply:s=>{
+    cameraMode=s.cameraMode??'ground';cable={...defaultCable,...s.cable};
     preset.value=s.preset;byId('view').value=s.view;
-    Object.assign(state,{camera:[...s.camera],aim:[...s.aim],lenses:[...s.lenses],sensor:s.sensor,stageY:s.stageY,opacity:s.opacity,visible:[...s.visible],showStage:s.showStage});
+    Object.assign(state,{camera:[...s.camera],aim:[...s.aim],lenses:[...s.lenses],sensor:s.sensor,stageY:s.stageY,plotScale:s.plotScale??defaultScale,opacity:s.opacity,visible:[...s.visible],showStage:s.showStage});
     Object.assign(viewfinderState,{eye:s.eye,targetHeight:s.targetHeight,lens:s.lens,showCrowd:s.crowd});
     s.visible.forEach((v,i)=>byId('vis'+i).checked=v);
     byId('crowdToggle').checked=s.crowd;byId('showStage').checked=s.showStage;byId('opacity').value=Math.round(s.opacity*100);

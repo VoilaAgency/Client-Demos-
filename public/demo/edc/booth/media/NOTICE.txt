@@ -1,0 +1,9 @@
+FFmpeg WebAssembly single-thread core, @ffmpeg/core 0.12.10 (unmodified,
+with lossless gzip compression applied to the WASM file).
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Source and build scripts for this upstream release:
+https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10
+https://github.com/ffmpegwasm/ffmpeg.wasm/releases/tag/v0.12.10
+The upstream core links FFmpeg and related codecs. Refer to the build
+scripts in that release for the source repositories and revisions.
