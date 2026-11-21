@@ -1,0 +1,20 @@
+/* Kinetic-only view/settings divider. Existing artwork and control styling retained. */
+.split-workspace{display:grid;grid-template-rows:var(--views-height,300px) 24px minmax(150px,1fr);min-width:0}
+body .split-workspace .view-tiles{display:grid;grid-template-columns:1fr 1fr;align-items:stretch;min-height:0;gap:12px}
+.split-workspace .canvas{display:flex;flex-direction:column;min-height:0;height:100%}
+.split-workspace .camera-tile .frame{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+body .split-workspace .camera-tile .frame canvas{display:block;width:100%;height:100%;max-height:none;aspect-ratio:auto;object-fit:contain}
+body .split-workspace .map-thumbnail{display:flex;flex-direction:column;max-width:none;min-height:0;height:100%}
+body .split-workspace .map-thumbnail>summary{display:none}
+body .split-workspace .map-tile svg{flex:1;width:100%;height:100%;min-height:0;max-height:none;aspect-ratio:auto}
+.split-workspace .panel-title,.split-workspace .caption,.split-workspace .viewfinder-caption{flex-shrink:0}
+.view-divider{display:flex;align-items:center;justify-content:center;gap:10px;cursor:row-resize;touch-action:none;user-select:none;color:#a8d6ed;outline:none}
+.view-divider:before,.view-divider:after{content:'';height:1px;background:#2c414f;flex:1}
+.view-divider>span{width:38px;height:4px;background:#89bdd7;border-radius:3px}
+.view-divider small{font-size:10px;letter-spacing:.08em;color:#a0b5c3}
+.view-divider:hover>span,.view-divider:focus-visible>span,.view-divider.dragging>span{background:#c1eeff;box-shadow:0 0 0 3px #89bdd733}
+.split-settings{overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:3px;padding-bottom:12px}
+.split-settings .live-dock{margin-top:0}.split-settings:focus-visible{outline:1px solid #89bdd7;outline-offset:2px}
+@media(max-width:700px){body .split-workspace .view-tiles{grid-template-columns:1fr 1fr;gap:6px}.split-workspace .panel-title{padding:6px;gap:4px}.split-workspace .caption,.split-workspace .viewfinder-caption{font-size:10px;padding:5px}.view-divider small{font-size:9px}}
+/* details has an anonymous content box; size the map card explicitly. */
+body .split-workspace .map-thumbnail>.map-tile{height:var(--views-height);max-height:var(--views-height);overflow:hidden}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kinetic Field Viewfinder</title>
 <meta name="description" content="A synchronized overhead camera plot and simulated 16:9 viewfinder for Kinetic Field.">
-<link rel="stylesheet" href="show.css?v=20261118">
+<link rel="stylesheet" href="show.css?v=20261120-v10">
 <style>
 :root{color-scheme:dark;--bg:#101820;--panel:#16232e;--line:#2c414f;--fg:#e3edf1;--muted:#a0b5c3;--cyan:#4ccdeb;--amber:#ffb85c;--lavender:#bca2ef;font:15px system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg)}button,input,select{font:inherit;color:inherit}button,select,input[type=number]{border:1px solid #435969;border-radius:5px;background:#111e28;padding:7px 9px;min-width:0}button,select{cursor:pointer}button:hover{border-color:var(--cyan)}:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}input[type=range]{width:100%;accent-color:var(--accent,var(--cyan));margin:5px 0 2px}input[type=checkbox]{accent-color:var(--accent,var(--cyan))}output{font-variant-numeric:tabular-nums}
@@ -22,13 +22,16 @@
 .camera-presets h2{margin:0 0 8px}.camera-presets details{border:1px solid #2a414f;border-radius:6px;background:#111e28}
 .camera-presets summary{padding:9px 11px;cursor:pointer}.preset-fields{display:flex;flex-wrap:wrap;align-items:end;gap:8px;padding:0 11px 11px}.preset-fields label{flex:1 1 210px}
 [hidden]{display:none!important}.cable-controls{margin-top:10px}
+
+.plan-mode{display:inline-flex;gap:4px;border:1px solid #3b5667;border-radius:6px;padding:3px}.plan-mode button{background:transparent;color:#a6bdc9;padding:6px 10px;border:0;font-size:12px;letter-spacing:.06em}.plan-mode button[aria-pressed="true"]{background:#294a60;color:#c6edff}.plan-mode button:hover{background:#335e77;color:#e1f6ff}
+.array-dot{cursor:pointer;outline:none}.array-dot .dot{fill:#8ec8e9;stroke:#c4edff;stroke-width:1.3}.array-dot .halo{fill:#9ddcff;opacity:0}.array-dot:hover .halo,.array-dot:focus .halo{opacity:.30}.array-dot:hover .dot,.array-dot:focus .dot{fill:#c1eeff;stroke:#edfaff;stroke-width:2}.array-dot.active .halo{opacity:.19}.array-dot.active .dot{fill:#a4e0ff;stroke:#e5f7ff;stroke-width:2}.array-dot text{fill:#a9d7ee;paint-order:stroke;stroke:#101820;stroke-width:3;stroke-linejoin:round;pointer-events:auto}.array-dot:hover text,.array-dot:focus text{fill:#e2f6ff}
 </style>
-<link rel="stylesheet" href="/tool-shell.css?v=20261118"></head>
-<body><a class="voila-return" href="../" aria-label="Back to the EDC demo room"><span aria-hidden="true">←</span> VOILA / DEMO ROOM</a>
+<link rel="stylesheet" href="/tool-shell.css?v=20261120-v10"><link rel="stylesheet" href="ergonomics.css?v=20261120-v10"><link rel="stylesheet" href="split-view.css?v=20261120-v10"><link rel="stylesheet" href="dashboard.css?v=20261120-v10"></head>
+<body><a class="voila-return" href="../">VOILA / STAGE SELECTOR</a>
 <main class="shell">
   <header class="bar">
-    <div><div class="eyebrow">Live production / camera planning</div><h1>Kinetic Field Viewfinder</h1><p class="sub">Frame the shot in 16:9 while you move the camera on the overhead plot.</p></div>
-    <div class="actions">
+    <div><div class="eyebrow">Live production / camera planning</div><h1>KINETIC FIELD VIEWFINDER</h1></div>
+    <div class="actions"><label class="label">Stage <select id="stageSelect" aria-label="Stage selection"><option value="kinetic">Kinetic Field</option><option value="cosmic-meadow">Cosmic Meadow</option><option value="circuit-grounds">Circuit Grounds</option><option value="basspod">Basspod</option><option value="quantum-valley">Quantum Valley</option><option value="bionic-jungle">Bionic Jungle</option></select></label>
       <a class="nav-link" href="../overhead/">Overhead plot</a>
       <button id="export" class="secondary" type="button">Export plot</button>
       <button id="exportFrame" class="export" type="button">Export viewfinder</button>
@@ -42,7 +45,7 @@
         <div class="viewfinder-caption" id="frameReadout"></div>
       </div>
       <div class="canvas">
-        <div class="panel-title"><span class="label">Overhead / feet</span><span class="plot-hint" id="plotHint">Drag CAMERA or AIM</span><label class="label">View <select id="view"><option value="fit">Fit setup</option><option value="field">Full field</option></select></label></div>
+        <div class="panel-title"><span class="label">Overhead / feet</span><div class="plan-mode" role="group" aria-label="Planning mode"><button id="designMode" type="button" aria-pressed="true">DESIGN</button><button id="arrayMode" type="button" aria-pressed="false">2026 ARRAY</button></div><span class="plot-hint" id="plotHint">Drag CAMERA or AIM</span><label class="label">View <select id="view"><option value="fit">Fit setup</option><option value="field">Full field</option></select></label></div>
         <svg id="plot" viewBox="0 0 940 620" role="img" aria-label="Top-down lens coverage plot. Camera and aim can also be changed with the numeric fields."></svg>
         <div class="caption"><span>Stage R = audience left (−X)</span><span>Stage L = audience right (+X)</span><span>+Y toward audience</span></div>
       </div>
@@ -106,8 +109,8 @@
   </section>
   <section id="show" class="show-panel" aria-label="Show presets"></section>
 </main>
-<script src="viewfinder.js?v=20261118"></script>
-<script src="show.js?v=20261118"></script>
+<script src="viewfinder.js?v=20261120-v10"></script>
+<script src="show.js?v=20261120-v10"></script>
 <script>
 'use strict';
 // Coordinates traced on the supplied 2048 × 1582 plan, before rotation.
@@ -179,6 +182,7 @@ const presets = {
   deck: {name:'Deck booth / off-axis', camera:[-10,-8], aim:[0,0], sensor:24, lenses:[30,60,90]},
   deckCenter: {name:'Deck booth / center reverse', camera:[0,-10], aim:[0,0], sensor:24, lenses:[30,60,90]},
 };
+let planMode='design',arraySelection=null,designSnapshot=null,readWorking=null,applyWorking=null;
 const series = [{name:'Wide',color:'#4ccdeb'},{name:'Midrange',color:'#ffb85c'},{name:'Tight',color:'#bca2ef'}];
 const byId = id => document.getElementById(id);
 const svg = byId('plot');
@@ -208,6 +212,52 @@ const frameLens=byId('frameLens');
 let pendingFrame=0;
 const heights={mapCam1:[9,11.8],mapCam2:[9,11.8],mapCrane:[9,11.8],foh:[9,11.8],sl:[10,11.8],sr:[10,11.8],pitR:[5.5,11.8],pitL:[5.5,11.8],pitCrowd:[5.5,5.6],rail:[5,11.8],railR:[5,11.8],deck:[11.5,11.8],deckCenter:[11.5,11.8]};
 
+const legacyArray=[{"key": "legacy1", "title": "CAM 1 / AUDIENCE PLATFORM", "source": [895, 683], "eye": 9, "lenses": [35, 100, 435], "aim": null}, {"key": "legacy2", "title": "CAM 2 / PROPOSED PLATFORM", "source": [1051, 1117], "eye": 9, "lenses": [35, 100, 435], "aim": null}, {"key": "legacy3", "title": "CAM 3 / PIT", "source": [1462, 647], "eye": 5.5, "lenses": [35, 85, 145], "aim": null}, {"key": "legacy4", "title": "CAM 4 / PIT", "source": [1457, 957], "eye": 5.5, "lenses": [35, 85, 145], "aim": null}, {"key": "legacy5", "title": "CAM 5 / ONSTAGE", "source": [1529, 865], "eye": 11.5, "lenses": [30, 60, 90], "aim": null}, {"key": "legacy6", "title": "CAM 6 / CABLE CAM", "source": [862, 1134], "eye": 35, "lenses": [16, 24, 54], "aim": null}, {"key": "legacy7", "title": "CAM 7 / TECHNOCRANE", "source": [1064, 453], "eye": 24, "lenses": [35, 85, 145], "aim": null}, {"key": "legacy8", "title": "CAM 8 / DJ DESK", "source": [1533, 783], "eye": 9.5, "lenses": [16, 24, 35], "aim": null}, {"key": "legacy9", "title": "CAM 9 / REVERSE PTZ", "source": [1539, 819], "eye": 11.5, "lenses": [16, 35, 70], "aim": [0, 250]}];
+for(const c of legacyArray){presets[c.key]={name:c.title,source:c.source,sensor:36,lenses:c.lenses};heights[c.key]=[c.eye,c.aim?5.6:11.8];}
+function escapeLabel(v){return v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
+function arrayDots(X,Y){
+ return legacyArray.map(c=>{
+  let point=worldPoint(c.source,state.plotScale);
+  if(c.key==='legacy6'){const ends=cableRoute.map(p=>worldPoint(p,state.plotScale));point=ends[0].map((v,i)=>v+(ends[1][i]-v)*.61);}
+  const x=X(point[0]),y=Y(point[1]);
+  const offsets={legacy3:[-105,-20],legacy4:[30,20],legacy5:[32,42],legacy8:[-50,-57],legacy9:[55,-33]};
+  const [lx,ly]=offsets[c.key]||[12,-10];
+  const short=c.title.replace('AUDIENCE PLATFORM','PLATFORM').replace('PROPOSED PLATFORM','PROPOSED').replace('TECHNOCRANE','CRANE');
+  const title=c.title+' · '+c.eye+' ft camera height · '+c.lenses.join(' / ')+' mm · full frame';
+  return '<g class="array-dot '+(arraySelection===c.key?'active':'')+'" data-array-camera="'+c.key+'" role="button" tabindex="0" aria-label="'+escapeLabel(title)+'" aria-pressed="'+(arraySelection===c.key)+'"><title>'+escapeLabel(title)+'</title><circle cx="'+x+'" cy="'+y+'" r="15" fill="transparent"/><circle class="halo" cx="'+x+'" cy="'+y+'" r="12"/><circle class="dot" cx="'+x+'" cy="'+y+'" r="4.5"/><path d="M'+x+' '+y+'L'+(x+lx)+' '+(y+ly)+'" stroke="#81b6d0" stroke-opacity=".5" stroke-width=".7"/><text x="'+(x+lx)+'" y="'+(y+ly-3)+'" font-size="12">'+escapeLabel(short)+'</text></g>';
+ }).join('');
+}
+function syncPlanMode(){
+ byId('designMode').setAttribute('aria-pressed',String(planMode==='design'));
+ byId('arrayMode').setAttribute('aria-pressed',String(planMode==='array'));
+ document.querySelector('.camera-presets').hidden=planMode!=='array';
+}
+function selectArray(key){
+ const c=legacyArray.find(c=>c.key===key);if(!c)return;
+ arraySelection=key;preset.value=key;cameraMode='ground';
+ state.camera=worldPoint(c.source,state.plotScale);state.aim=c.aim?[...c.aim]:[0,-1.65];
+ if(key==='legacy8'){state.camera=[0,3.5];}
+ state.sensor=36;state.stageY=frontAt(state.plotScale);state.lenses=[...c.lenses];state.visible=[true,true,true];
+ viewfinderState.eye=c.eye;viewfinderState.targetHeight=c.aim?5.6:11.8;viewfinderState.lens=0;
+ if(key==='legacy6'){cameraMode='cable';cable={...defaultCable,travel:61,height:35,lockDJ:true};}
+ series.forEach((_,i)=>byId('vis'+i).checked=true);render();
+}
+function changePlanMode(mode){
+ if(mode===planMode)return;
+ if(mode==='array'){designSnapshot=structuredClone(readWorking());planMode='array';arraySelection=null;}
+ else{const saved=designSnapshot;planMode='design';arraySelection=null;if(saved)applyWorking(saved);designSnapshot=null;}
+ syncPlanMode();render();
+}
+function mountArrayShow(options){
+ readWorking=options.read;applyWorking=options.apply;
+ const validate=options.validate;
+ mountShow({...options,key:'kinetic-array-experiment-show-v1',
+  read:()=>({...readWorking(),planMode,arraySelection,designShot:designSnapshot}),
+  validate:s=>validate(s)&&(s.planMode===undefined||['design','array'].includes(s.planMode))&&(s.arraySelection==null||legacyArray.some(c=>c.key===s.arraySelection))&&(s.designShot==null||validate(s.designShot)),
+  apply:s=>{planMode=s.planMode||'design';arraySelection=s.arraySelection??null;designSnapshot=s.designShot??null;applyWorking(s);syncPlanMode();}
+ });
+ syncPlanMode();
+}
 function frameOptions() {
   return {...activeCamera(),stageFront:state.stageY, stageWidth:widthAt(state.plotScale), railY:railAt(state.plotScale),
     audience:plot2026.audience.map(point=>worldPoint(point,state.plotScale)),
@@ -330,12 +380,7 @@ function makePlot(t, geometries) {
   marks+=planLabel([910,886],'FOH');
   const [cableLeft,cableRight]=cableRoute.map(planPoint);
   marks+='<path d="M'+cableLeft+' L'+cableRight+'" fill="none" stroke="#dfb65f" stroke-width="'+(cameraMode==='cable'?2.6:1.3)+'" stroke-dasharray="6 4"/>';
-  marks+=planLabel([733,967],'CABLE CAM RUN');
-  for (const [point,label] of [[plot2026.camera1,'CAM 1'],[plot2026.camera2,'CAM 2 · PROPOSED'],[plot2026.crane,'CAM 7']]) {
-    const [x,y]=worldPoint(point,state.plotScale);
-    marks+='<circle cx="'+X(x)+'" cy="'+Y(y)+'" r="4" fill="#7d9ba9"/>';
-    marks+=svgLabel(X(x),Y(y)+16,label,'#b6cad4','middle',10);
-  }
+  if(planMode==='array') marks+=planLabel([733,967],'CABLE CAM RUN');
   marks+='<g stroke="#293f4c" stroke-width="1">'+grid+'</g>';
   marks+='<path d="M'+X(0)+' 24V'+(H-26)+'" stroke="#4a6373" stroke-dasharray="4 6"/>';
   if (Y(stageY)>24 && Y(stageY)<H-26) {
@@ -370,6 +415,7 @@ function makePlot(t, geometries) {
     marks+='<g data-handle="'+id+'"><circle cx="'+x+'" cy="'+y+'" r="18" fill="transparent"/><circle cx="'+x+'" cy="'+y+'" r="'+(id==='aim'?6:8)+'" fill="#101820" stroke="'+color+'" stroke-width="2"/>';
     marks+=svgLabel(x+13,y+5,label,color,'start',13)+'</g>';
   }
+  if(planMode==='array') marks+=arrayDots(X,Y);
   marks+='</g>';
   return '<defs><clipPath id="plot-clip"><rect x="20" y="24" width="'+(W-40)+'" height="'+(H-50)+'"/></clipPath></defs><g font-family="system-ui, sans-serif">'+marks+axes+
     svgLabel(21,16,'STAGE R / −X','#a0b5c3')+svgLabel(W-21,16,'STAGE L / +X','#a0b5c3','end')+svgLabel(W/2,H-8,'X / FT','#a0b5c3','middle',11)+'</g>';
@@ -378,7 +424,12 @@ function geoms() {
   const {camera,aim}=activeCamera();
   return state.lenses.map(f=>lensGeometry(camera,aim,state.sensor,f,state.stageY));
 }
+const lensInventory=[{name:'ANGÉNIEUX / 35–435 MM',min:35,max:435},{name:'ANGÉNIEUX / 35–145 MM',min:35,max:145},{name:'ANGÉNIEUX / 30–90 MM',min:30,max:90},{name:'ANGÉNIEUX / 15–40 MM',min:15,max:40}];
+function activeInventory(){const end=Math.max(...state.lenses);return lensInventory.find(l=>l.max===end)||lensInventory.find(l=>l.max>=end&&l.max<=40)||lensInventory.find(l=>l.max>=end&&l.max<=90)||lensInventory.find(l=>l.max>=end&&l.max<=145)||lensInventory[0];}
 function render({freeze=false, skip=''}={}) {
+  const lens=activeInventory();
+  state.lenses=[lens.min,Math.max(lens.min,Math.min(lens.max,state.lenses[1])),lens.max];
+  viewfinderState.lens=1;
   const geometry = geoms();
   if (cameraMode==='ground'&&geometry[0]) state.direction=[(state.aim[0]-state.camera[0])/geometry[0].distance,(state.aim[1]-state.camera[1])/geometry[0].distance];
   if (!freeze || !transform) transform=frame();
@@ -434,7 +485,7 @@ function bindNumber(id, apply) {
   });
   field.addEventListener('change',()=>render());
 }
-preset.innerHTML=Object.entries(presets).map(([id,p])=>'<option value="'+id+'">'+p.name+'</option>').join('');
+preset.innerHTML=Object.entries(presets).filter(([id])=>id.startsWith('legacy')).map(([id,p])=>'<option value="'+id+'">'+p.name+'</option>').join('');
 byId('lenses').innerHTML=series.map((s,i)=>'<div class="lens" style="--accent:'+s.color+'"><div class="lens-row">'+
   '<label><input type="checkbox" checked id="vis'+i+'"> '+s.name+'</label><label><span class="label">mm</span> <input id="f'+i+'" type="number" min="1" max="2000" step="1" aria-label="'+s.name+' focal length in millimeters"></label></div>'+
   '<input id="zoom'+i+'" type="range" min="1" max="2000" step="1" aria-label="'+s.name+' focal length slider">'+
@@ -480,8 +531,8 @@ for (const key of ['height','pan','tilt']){
 }
 byId('cableLockDJ').addEventListener('change',e=>{cable.lockDJ=e.target.checked;render()});
 byId('cableTravel').addEventListener('input',e=>{cable.travel=Number(e.target.value);render()});
-preset.addEventListener('change',loadPreset);
-byId('reset').addEventListener('click',loadPreset);
+preset.addEventListener('change',()=>{if(planMode==='array')selectArray(preset.value);else loadPreset();});
+byId('reset').addEventListener('click',()=>planMode==='array'?selectArray(preset.value):loadPreset());
 byId('view').addEventListener('change',()=>render());
 byId('format').addEventListener('change',e=>{
   if(e.target.value==='custom'){byId('sensor').focus();byId('sensor').select();return}
@@ -588,7 +639,7 @@ const validShot=s=>!!s&&Object.hasOwn(presets,s.preset)&&['fit','field'].include
   (s.cameraMode===undefined||s.cameraMode==='ground'||s.cameraMode==='cable')&&
   (s.cable===undefined?s.cameraMode!=='cable':validCable(s.cable))&&
   typeof s.crowd==='boolean'&&typeof s.showStage==='boolean'&&validNumbers([s.stageY],1,-150,650);
-mountShow({key:'kinetic-lens-show-v1',validate:validShot,seconds:4,
+mountArrayShow({key:'kinetic-array-experiment-show-v1',validate:validShot,seconds:4,
   read:()=>({cameraMode,cable:{...cable},preset:preset.value,view:byId('view').value,camera:[...state.camera],aim:[...state.aim],
     lenses:[...state.lenses],sensor:state.sensor,stageY:state.stageY,plotScale:state.plotScale,opacity:state.opacity,visible:[...state.visible],showStage:state.showStage,
     eye:viewfinderState.eye,targetHeight:viewfinderState.targetHeight,lens:viewfinderState.lens,crowd:viewfinderState.showCrowd}),
@@ -602,6 +653,13 @@ mountShow({key:'kinetic-lens-show-v1',validate:validShot,seconds:4,
     render();
   }
 });
+
+byId('designMode').addEventListener('click',()=>changePlanMode('design'));
+byId('arrayMode').addEventListener('click',()=>changePlanMode('array'));
+svg.addEventListener('pointerdown',e=>{if(e.target.closest('[data-array-camera]'))e.stopImmediatePropagation();},true);
+svg.addEventListener('click',e=>{const dot=e.target.closest('[data-array-camera]');if(dot&&planMode==='array'){e.stopPropagation();selectArray(dot.dataset.arrayCamera);}});
+svg.addEventListener('keydown',e=>{const dot=e.target.closest('[data-array-camera]');if(dot&&['Enter',' '].includes(e.key)){e.preventDefault();selectArray(dot.dataset.arrayCamera);}});
+syncPlanMode();
 </script>
-</body>
+<script src="ergonomics.js?v=20261120-v10"></script><script>document.getElementById("stageSelect").value="kinetic";document.getElementById("stageSelect").onchange=e=>location.href="../"+e.target.value+"/";</script><script src="split-view.js?v=20261120-v10"></script><script src="dashboard.js?v=20261120-v10"></script></body>
 </html>
